@@ -855,7 +855,21 @@ export default function App() {
             <div className="glass-panel profile-onboarding-bar">
               <div className="profile-onboarding-header">
                 <h3 className="profile-onboarding-title">
-                  Complete your anonymous profile <Sparkles className="w-5 h-5 text-violet-400 inline-block align-middle ml-1.5" />
+                  Complete your anonymous profile 
+                  <svg className="animated-emoji" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <linearGradient id="emojiGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#ffe066" />
+                        <stop offset="100%" stopColor="#ffb703" />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="12" cy="12" r="10" fill="url(#emojiGold)" className="emoji-body" />
+                    <g className="emoji-face">
+                      <circle cx="9" cy="10" r="1.2" fill="#1e1b4b" />
+                      <circle cx="15" cy="10" r="1.2" fill="#1e1b4b" />
+                      <path d="M8 14.5 C 9 17, 15 17, 16 14.5" stroke="#1e1b4b" strokeWidth="1.2" strokeLinecap="round" fill="none" />
+                    </g>
+                  </svg>
                 </h3>
                 <p className="profile-onboarding-subtitle">This is what others will see</p>
               </div>

@@ -1372,3 +1372,47 @@ input[type="range"]::-webkit-slider-thumb:hover {
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(139, 92, 246, 0.15);
 }
+
+/* Animated Emoji Styles */
+.animated-emoji {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 6px;
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 2px 6px rgba(251, 191, 36, 0.3));
+}
+
+.emoji-face {
+  animation: faceReveal 3s ease-in-out infinite;
+  transform-origin: 12px 12px;
+}
+
+.emoji-body {
+  animation: emojiWobble 1.5s ease-in-out infinite;
+  transform-origin: 12px 12px;
+}
+
+@keyframes faceReveal {
+  0%, 20% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  35%, 80% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  90%, 100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+@keyframes emojiWobble {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.04, 0.96) translateY(0.5px);
+  }
+}
