@@ -1781,17 +1781,7 @@ export default function App() {
 
 
 
-          {/* Premium promo widget */}
-          <div className="upgrade-promo-card">
-            <h5>Want better matches?</h5>
-            <p>Increase your chances by completing your profile details.</p>
-            <button 
-              onClick={() => showToast('Premium features coming soon! Stay tuned.', 'info')}
-              className="btn-primary upgrade-btn"
-            >
-              Upgrade Now
-            </button>
-          </div>
+
         </aside>
 
       </div>
