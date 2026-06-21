@@ -27,6 +27,7 @@ import {
   Music,
   Coffee,
   Tag,
+  ArrowLeft,
   X
 } from 'lucide-react';
 import './App.css';
@@ -116,6 +117,13 @@ export default function App() {
 
   // App Navigation
   const [activeTab, setActiveTab] = useState<'home' | 'connections' | 'chats' | 'settings' | 'admin'>('home');
+  const [previousTab, setPreviousTab] = useState<'home' | 'connections' | 'chats' | 'admin'>('home');
+
+  useEffect(() => {
+    if (activeTab !== 'settings') {
+      setPreviousTab(activeTab as any);
+    }
+  }, [activeTab]);
 
   // User Profile Info
   const [userId, setUserId] = useState<string>('');
@@ -1257,8 +1265,19 @@ export default function App() {
               ) : (
                 /* Settings Tab Centerpiece */
                 <div className="w-full flex flex-col p-4 md:p-6 text-left">
-                  <h3 className="text-xl font-bold font-space text-white mb-1">Discovery & Privacy Settings</h3>
-                  <p className="text-xs text-text-secondary mb-6">Manage how you appear and discover matches in your area.</p>
+                  <div className="flex items-center gap-3 mb-6">
+                    <button 
+                      onClick={() => setActiveTab(previousTab)}
+                      className="p-2 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all flex items-center justify-center md:hidden"
+                      title="Back"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <div>
+                      <h3 className="text-xl font-bold font-space text-white mb-1">Discovery & Privacy Settings</h3>
+                      <p className="text-xs text-text-secondary">Manage how you appear and discover matches in your area.</p>
+                    </div>
+                  </div>
 
                   <div className="flex flex-col gap-6">
                     <div className="flex flex-col gap-2">
