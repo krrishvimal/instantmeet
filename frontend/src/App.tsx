@@ -1436,7 +1436,7 @@ export default function App() {
               <div className="centerpiece-chat-panel">
 
                 {/* Chat Header */}
-                <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5 rounded-t-2xl">
+                <div className="pb-4 flex items-center justify-between bg-transparent">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden relative bg-white/5">
                       <img 
