@@ -186,7 +186,6 @@ export default function App() {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   // Discovery & Privacy Settings (wired to server)
-  const [discoveryRadius, setDiscoveryRadius] = useState(10);
   const [visibleOnRadar, setVisibleOnRadar] = useState(true);
   const [stealthMode, setStealthMode] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -571,7 +570,7 @@ export default function App() {
     if (!socket || !userId) return;
     setIsScanning(true);
     setSelectedNode(null);
-    socket.emit('search-nearby', { userId, radius: discoveryRadius });
+    socket.emit('search-nearby', { userId, radius: 50 });
   };
 
   // Send wave / connection request
@@ -785,7 +784,7 @@ export default function App() {
             </div>
             <div>
               <h2 className="text-gradient" style={{ fontSize: '1.25rem' }}>InstantMeet</h2>
-              <p className="text-[11px] text-text-muted font-medium mt-0.5">Anonymous. Real. Nearby.</p>
+              <p className="text-[11px] text-text-muted font-medium mt-0.5">Anonymous. Real. Instant.</p>
             </div>
           </div>
 
@@ -1064,8 +1063,8 @@ export default function App() {
                       <span className="text-4xl font-extrabold font-space">
                         {isScanning ? <Loader2 className="w-8 h-8 animate-spin" /> : nearbyUsers.length}
                       </span>
-                      <span className="text-[11px] uppercase tracking-wider text-violet-300 font-semibold mt-1">people nearby</span>
-                      <span className="text-[9px] text-text-secondary mt-0.5">within {discoveryRadius} km</span>
+                      <span className="text-[11px] uppercase tracking-wider text-violet-300 font-semibold mt-1">people online</span>
+                      <span className="text-[9px] text-text-secondary mt-0.5">in {selectedCity}</span>
                     </div>
 
                     {/* Real-time matched users positioned around the orb ring */}
@@ -1095,7 +1094,7 @@ export default function App() {
                       <div className="glass-panel p-4 flex flex-col items-center text-center max-w-xs border-cyan-500/20">
                         <h4 className="font-bold text-white">@{selectedNode.alias}</h4>
                         <p className="text-xs text-cyan-400 font-semibold mt-0.5">
-                          {selectedNode.distanceKm} km away{selectedNode.age > 0 ? ` • ${selectedNode.age}y/o` : ''}
+                          Online in {selectedCity}{selectedNode.age > 0 ? ` • ${selectedNode.age}y/o` : ''}
                         </p>
                         <div className="flex flex-wrap gap-1 justify-center mt-2">
                           {selectedNode.interests.length > 0 ? (
@@ -1132,7 +1131,7 @@ export default function App() {
                         ) : (
                           <>
                             <Radar className="w-5 h-5 animate-pulse" />
-                            Search Nearby People
+                            Search People
                           </>
                         )}
                       </button>
@@ -1218,7 +1217,7 @@ export default function App() {
                         <MessageSquare className="w-8 h-8 text-violet-400 mb-2 animate-pulse" />
                         <h4 className="font-bold text-white text-sm">No Active Chats</h4>
                         <p className="text-xs text-text-secondary mt-1 max-w-xs text-center">
-                          Find nearby users on your Home discovery radar and click "Connect" to open a secure chat thread!
+                          Find active users on your Home discovery radar and click "Connect" to open a secure chat thread!
                         </p>
                       </div>
                     ) : (
@@ -1361,21 +1360,6 @@ export default function App() {
                   </div>
 
                   <div className="flex flex-col gap-6">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold text-white">Discovery Radius</span>
-                        <span className="text-xs font-semibold text-violet-400">{discoveryRadius} km</span>
-                      </div>
-                      <input type="range" min="1" max="50" value={discoveryRadius} onChange={(e) => setDiscoveryRadius(parseInt(e.target.value))} className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-violet-500" />
-                      <div className="flex justify-between text-[10px] text-text-muted">
-                        <span>1 km</span>
-                        <span>10 km (Recommended)</span>
-                        <span>50 km</span>
-                      </div>
-                    </div>
-
-                    <hr className="border-white/5" />
-
                     <div className="flex flex-col gap-3">
                       <span className="text-xs uppercase font-bold tracking-wider text-text-muted">Select City</span>
                       
@@ -1476,7 +1460,7 @@ export default function App() {
                       <div className="flex items-center justify-between">
                         <div>
                           <h5 className="text-sm font-bold text-white">Visible on Radar</h5>
-                          <p className="text-[11px] text-text-secondary mt-0.5">Allow other nearby users to discover your bubble.</p>
+                          <p className="text-[11px] text-text-secondary mt-0.5">Allow other users in your city to discover your bubble.</p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input type="checkbox" checked={visibleOnRadar} onChange={(e) => setVisibleOnRadar(e.target.checked)} className="sr-only peer" />
@@ -1690,7 +1674,7 @@ export default function App() {
             <div className="deck-cards">
               {activeConnections.length === 0 ? (
                 <div className="p-5 text-center bg-white/5 border border-white/10 rounded-2xl w-full text-xs text-text-secondary">
-                  No active connections yet. Search nearby and wave to open a thread!
+                  No active connections yet. Search for users and wave to open a thread!
                 </div>
               ) : (
                 activeConnections.map((c) => (
@@ -1770,7 +1754,7 @@ export default function App() {
               </div>
               <div className="timeline-content">
                 <h5>Enter the bubble</h5>
-                <p>We search for people near you (up to 50 km).</p>
+                <p>We match you with people active in the same city.</p>
               </div>
             </div>
 
@@ -1822,7 +1806,7 @@ export default function App() {
               </div>
               <div className="modal-header-info">
                 <h4>Incoming Wave!</h4>
-                <p>A nearby user wants to connect</p>
+                <p>Someone in your city wants to connect</p>
               </div>
             </div>
 
@@ -1884,8 +1868,8 @@ export default function App() {
               <div className="modal-list-item">
                 <div className="modal-list-number">2</div>
                 <div className="modal-list-content">
-                  <h5>Hyperlocal Geofencing</h5>
-                  <p>We check for active matches within your chosen radius (up to 50 km), but your exact GPS coordinates are never stored or shared with anyone.</p>
+                  <h5>City-Wide Matching</h5>
+                  <p>We check for active matches within your chosen city. Your coordinates are never stored or shared with anyone, and we add an organic jitter offset to keep your location private.</p>
                 </div>
               </div>
 
