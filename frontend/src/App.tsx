@@ -1562,7 +1562,7 @@ export default function App() {
             
             <div className="deck-cards">
               {activeConnections.length === 0 ? (
-                <div className="p-5 text-center bg-white/5 border border-white/10 rounded-2xl w-full text-xs text-text-secondary">
+                <div className="deck-placeholder">
                   No active connections yet. Search for users and wave to open a thread!
                 </div>
               ) : (

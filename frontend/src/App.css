@@ -1360,3 +1360,23 @@ input[type="range"]::-webkit-slider-thumb:hover {
     transform: translateY(0);
   }
 }
+
+/* Placeholder card for empty connections list */
+.deck-placeholder {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 24px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-family: 'Outfit', sans-serif;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.deck-placeholder:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(139, 92, 246, 0.15);
+}
