@@ -11,6 +11,7 @@ export interface User {
   interests: string[];
   age: number;
   gender: string;
+  genderPreference: string;
   location: Location;
   lastActive: number;
   socketId?: string;

@@ -115,6 +115,7 @@ io.on('connection', (socket) => {
     interests: string[];
     age: number;
     gender?: string;
+    genderPreference?: string;
     location: Location;
     isVisible?: boolean;
     stealthMode?: boolean;
@@ -163,6 +164,7 @@ io.on('connection', (socket) => {
       interests,
       age,
       gender: data.gender || 'male',
+      genderPreference: data.genderPreference || 'any',
       location: data.location,
       lastActive: Date.now(),
       socketId: socket.id,
@@ -215,6 +217,10 @@ io.on('connection', (socket) => {
 
       // Skip users who turned off "Visible on Radar"
       if (!otherUser.isVisible) return;
+
+      // Mutual gender preference filter
+      if (currentUser.genderPreference !== 'any' && currentUser.genderPreference !== otherUser.gender) return;
+      if (otherUser.genderPreference !== 'any' && otherUser.genderPreference !== currentUser.gender) return;
 
       const distance = calculateDistance(currentUser.location, otherUser.location);
       

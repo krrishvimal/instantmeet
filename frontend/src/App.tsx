@@ -178,6 +178,7 @@ export default function App() {
   const [alias, setAlias] = useState('');
   const [realName] = useState('');
   const [gender, setGender] = useState<'male' | 'female'>('male');
+  const [genderPreference, setGenderPreference] = useState<'male' | 'female' | 'any'>('any');
   const [age, setAge] = useState<number | ''>('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(['Photography', 'Music', 'Coffee']);
@@ -279,6 +280,7 @@ export default function App() {
     interests: selectedTags,
     age,
     gender,
+    genderPreference,
     location: currentLocation,
     isVisible: visibleOnRadar,
     stealthMode,
@@ -293,11 +295,12 @@ export default function App() {
       interests: selectedTags,
       age,
       gender,
+      genderPreference,
       location: currentLocation,
       isVisible: visibleOnRadar,
       stealthMode,
     };
-  }, [userId, alias, realName, avatarUrl, selectedTags, age, gender, currentLocation, visibleOnRadar, stealthMode]);
+  }, [userId, alias, realName, avatarUrl, selectedTags, age, gender, genderPreference, currentLocation, visibleOnRadar, stealthMode]);
 
   // Re-register automatically on reconnect (if user was already registered)
   useEffect(() => {
@@ -531,6 +534,7 @@ export default function App() {
         interests: selectedTags,
         age: finalAge,
         gender,
+        genderPreference,
         location: currentLocation,
         isVisible: visibleOnRadar,
         stealthMode,
@@ -951,6 +955,35 @@ export default function App() {
                     </div>
                   </div>
 
+                  <div className="bar-input-group flex-1" style={{ minWidth: '160px' }}>
+                    <label>
+                      <Heart className="w-4 h-4 text-violet-400" />
+                      <span>Interested In</span>
+                    </label>
+                    
+                    <div className="flex flex-col gap-2">
+                      <select
+                        value={genderPreference}
+                        onChange={(e) => setGenderPreference(e.target.value as 'male' | 'female' | 'any')}
+                        className="bar-input w-full cursor-pointer"
+                        style={{
+                          background: 'rgba(30, 20, 74, 0.4)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '12px',
+                          padding: '10px 14px',
+                          color: '#fff',
+                          fontSize: '0.9rem',
+                          height: '42px',
+                          outline: 'none',
+                        }}
+                      >
+                        <option value="any" style={{ background: '#120c2d', color: '#fff' }}>Any Gender</option>
+                        <option value="male" style={{ background: '#120c2d', color: '#fff' }}>Male</option>
+                        <option value="female" style={{ background: '#120c2d', color: '#fff' }}>Female</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <div className="bar-input-group flex-1 interests-input-group">
                     <label>
                       <Heart className="w-4 h-4 text-violet-400" />
@@ -1289,10 +1322,9 @@ export default function App() {
 
                   <div className="flex flex-col gap-6">
                     <div className="flex flex-col gap-3">
-                      <span className="text-xs uppercase font-bold tracking-wider text-text-muted">Select City</span>
-                      
                       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-end">
-                        <div className="flex-1">
+                        <div className="flex-1 flex flex-col gap-1.5">
+                          <label className="text-xs font-semibold text-text-secondary">Current City</label>
                           <select
                             value={selectedCity}
                             onChange={(e) => setSelectedCity(e.target.value)}
@@ -1313,6 +1345,29 @@ export default function App() {
                                 {c.name}
                               </option>
                             ))}
+                          </select>
+                        </div>
+
+                        <div className="flex-1 flex flex-col gap-1.5">
+                          <label className="text-xs font-semibold text-text-secondary">Interested In (Gender Preference)</label>
+                          <select
+                            value={genderPreference}
+                            onChange={(e) => setGenderPreference(e.target.value as 'male' | 'female' | 'any')}
+                            className="bar-input w-full cursor-pointer"
+                            style={{
+                              background: 'rgba(30, 20, 74, 0.4)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              borderRadius: '12px',
+                              padding: '10px 14px',
+                              color: '#fff',
+                              fontSize: '0.9rem',
+                              height: '42px',
+                              outline: 'none',
+                            }}
+                          >
+                            <option value="any" style={{ background: '#120c2d', color: '#fff' }}>Any Gender</option>
+                            <option value="male" style={{ background: '#120c2d', color: '#fff' }}>Male</option>
+                            <option value="female" style={{ background: '#120c2d', color: '#fff' }}>Female</option>
                           </select>
                         </div>
                       </div>
@@ -1443,6 +1498,7 @@ export default function App() {
                             interests: selectedTags,
                             age: finalAge,
                             gender,
+                            genderPreference,
                             location: currentLocation,
                             isVisible: visibleOnRadar,
                             stealthMode,
