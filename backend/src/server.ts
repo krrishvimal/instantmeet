@@ -114,6 +114,7 @@ io.on('connection', (socket) => {
     avatarUrl: string;
     interests: string[];
     age: number;
+    gender?: string;
     location: Location;
     isVisible?: boolean;
     stealthMode?: boolean;
@@ -161,6 +162,7 @@ io.on('connection', (socket) => {
       avatarUrl: data.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${alias}`,
       interests,
       age,
+      gender: data.gender || 'male',
       location: data.location,
       lastActive: Date.now(),
       socketId: socket.id,
@@ -224,6 +226,7 @@ io.on('connection', (socket) => {
           alias: otherUser.alias,
           interests: otherUser.stealthMode ? [] : otherUser.interests,
           age: otherUser.stealthMode ? 0 : otherUser.age,
+          gender: otherUser.gender,
           distanceKm: obfuscateDistance(distance),
           isOnline: otherUser.isOnline,
         });

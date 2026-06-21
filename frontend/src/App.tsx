@@ -100,6 +100,7 @@ interface SearchResult {
   alias: string;
   interests: string[];
   age: number;
+  gender: string;
   distanceKm: number;
   isOnline: boolean;
 }
@@ -176,6 +177,7 @@ export default function App() {
   const [userId, setUserId] = useState<string>('');
   const [alias, setAlias] = useState('');
   const [realName] = useState('');
+  const [gender, setGender] = useState<'male' | 'female'>('male');
   const [age, setAge] = useState<number | ''>('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(['Photography', 'Music', 'Coffee']);
@@ -276,6 +278,7 @@ export default function App() {
     avatarUrl,
     interests: selectedTags,
     age,
+    gender,
     location: currentLocation,
     isVisible: visibleOnRadar,
     stealthMode,
@@ -289,11 +292,12 @@ export default function App() {
       avatarUrl,
       interests: selectedTags,
       age,
+      gender,
       location: currentLocation,
       isVisible: visibleOnRadar,
       stealthMode,
     };
-  }, [userId, alias, realName, avatarUrl, selectedTags, age, currentLocation, visibleOnRadar, stealthMode]);
+  }, [userId, alias, realName, avatarUrl, selectedTags, age, gender, currentLocation, visibleOnRadar, stealthMode]);
 
   // Re-register automatically on reconnect (if user was already registered)
   useEffect(() => {
@@ -513,7 +517,7 @@ export default function App() {
       return;
     }
 
-    const generatedAvatar = `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`;
+    const generatedAvatar = `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${gender}-${alias}`;
     setAvatarUrl(generatedAvatar);
 
     if (socket) {
@@ -526,6 +530,7 @@ export default function App() {
         avatarUrl: generatedAvatar,
         interests: selectedTags,
         age: finalAge,
+        gender,
         location: currentLocation,
         isVisible: visibleOnRadar,
         stealthMode,
@@ -862,6 +867,29 @@ export default function App() {
                   </div>
 
                   <div className="bar-input-group">
+                    <label>Gender</label>
+                    <select
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value as 'male' | 'female')}
+                      className="bar-input display-name-input cursor-pointer"
+                      style={{
+                        background: 'rgba(30, 20, 74, 0.4)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '12px',
+                        padding: '10px 14px',
+                        color: '#fff',
+                        fontSize: '0.9rem',
+                        height: '42px',
+                        outline: 'none',
+                        minWidth: '100px',
+                      }}
+                    >
+                      <option value="male" style={{ background: '#120c2d', color: '#fff' }}>Male</option>
+                      <option value="female" style={{ background: '#120c2d', color: '#fff' }}>Female</option>
+                    </select>
+                  </div>
+
+                  <div className="bar-input-group">
                     <label>
                       <Calendar className="w-4 h-4 text-violet-400" />
                       <span>Age</span>
@@ -1050,7 +1078,7 @@ export default function App() {
                       <div className="glass-panel p-4 flex flex-col items-center text-center max-w-xs border-cyan-500/20">
                         <h4 className="font-bold text-white">@{selectedNode.alias}</h4>
                         <p className="text-xs text-cyan-400 font-semibold mt-0.5">
-                          Online in {selectedCity}{selectedNode.age > 0 ? ` • ${selectedNode.age}y/o` : ''}
+                          Online in {selectedCity}{selectedNode.age > 0 ? ` • ${selectedNode.age}y/o` : ''}{selectedNode.gender ? ` • ${selectedNode.gender.charAt(0).toUpperCase() + selectedNode.gender.slice(1)}` : ''}
                         </p>
                         <div className="flex flex-wrap gap-1 justify-center mt-2">
                           {selectedNode.interests.length > 0 ? (
@@ -1308,6 +1336,28 @@ export default function App() {
                           />
                         </div>
 
+                        <div className="w-32 flex flex-col gap-1.5">
+                          <label className="text-xs font-semibold text-text-secondary">Gender</label>
+                          <select
+                            value={gender}
+                            onChange={(e) => setGender(e.target.value as 'male' | 'female')}
+                            className="bar-input w-full cursor-pointer"
+                            style={{
+                              background: 'rgba(30, 20, 74, 0.4)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              borderRadius: '12px',
+                              padding: '10px 14px',
+                              color: '#fff',
+                              fontSize: '0.9rem',
+                              height: '42px',
+                              outline: 'none',
+                            }}
+                          >
+                            <option value="male" style={{ background: '#120c2d', color: '#fff' }}>Male</option>
+                            <option value="female" style={{ background: '#120c2d', color: '#fff' }}>Female</option>
+                          </select>
+                        </div>
+
                         <div className="w-24 flex flex-col gap-1.5">
                           <label className="text-xs font-semibold text-text-secondary">Age</label>
                           <input 
@@ -1384,7 +1434,7 @@ export default function App() {
                         if (socket && isRegistered) {
                           const finalAge = typeof age !== 'number' || isNaN(age) ? 18 : Math.max(13, Math.min(120, age));
                           setAge(finalAge);
-                          const generatedAvatar = `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`;
+                          const generatedAvatar = `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${gender}-${alias}`;
                           socket.emit('register-user', {
                             userId,
                             alias,
@@ -1392,6 +1442,7 @@ export default function App() {
                             avatarUrl: generatedAvatar,
                             interests: selectedTags,
                             age: finalAge,
+                            gender,
                             location: currentLocation,
                             isVisible: visibleOnRadar,
                             stealthMode,

@@ -10,6 +10,7 @@ export interface User {
   avatarUrl: string;
   interests: string[];
   age: number;
+  gender: string;
   location: Location;
   lastActive: number;
   socketId?: string;
@@ -43,6 +44,7 @@ export interface SearchResult {
   alias: string;
   interests: string[];
   age: number;
+  gender: string;
   distanceKm: number;
   isOnline: boolean;
 }
