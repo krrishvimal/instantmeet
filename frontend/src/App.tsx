@@ -204,6 +204,7 @@ export default function App() {
   const [visibleOnRadar, setVisibleOnRadar] = useState(true);
   const [stealthMode, setStealthMode] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isSubscribedToCityAlerts, setIsSubscribedToCityAlerts] = useState(false);
 
   // Toast notification helper - replaces native alert()
   const showToast = useCallback((text: string, type: ToastMessage['type'] = 'info') => {
@@ -521,6 +522,24 @@ export default function App() {
       setLocationSynced(true);
     });
 
+    socketInstance.on('subscribe-city-alerts-success', (data: { city: string }) => {
+      setIsSubscribedToCityAlerts(true);
+      showToast(`Alert subscription active for ${data.city}! 🔔`, 'success');
+    });
+
+    socketInstance.on('city-alert-new-user', (data: { city: string; alias: string }) => {
+      if (Notification.permission === 'granted') {
+        const notif = new Notification(`InstantMeet: New user in ${data.city}!`, {
+          body: `@${data.alias} just joined. Open InstantMeet to match and chat!`,
+        });
+        notif.onclick = () => {
+          window.focus();
+        };
+      } else {
+        showToast(`New user (@${data.alias}) just joined in ${data.city}!`, 'info');
+      }
+    });
+
     socketInstance.on('nearby-results', (data: SearchResult[] | { results: SearchResult[]; isGlobal?: boolean }) => {
       const resultsList = Array.isArray(data) ? data : data.results;
       const wasGlobal = Array.isArray(data) ? false : !!data.isGlobal;
@@ -698,6 +717,7 @@ export default function App() {
   // Sync location on mount, registration, or when selected city changes
   useEffect(() => {
     syncLocation();
+    setIsSubscribedToCityAlerts(false); // Reset alerts subscription state when city changes
   }, [isRegistered, socket, userId, selectedCity]);
 
   // Scroll to chat bottom
@@ -754,6 +774,29 @@ export default function App() {
     if (newTagInput.trim() && !selectedTags.includes(newTagInput.trim())) {
       setSelectedTags([...selectedTags, newTagInput.trim()]);
       setNewTagInput('');
+    }
+  };
+
+  const handleSubscribeCityAlerts = () => {
+    if (!socket || !userId) return;
+
+    if (!('Notification' in window)) {
+      showToast('This browser does not support desktop notifications.', 'error');
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      socket.emit('subscribe-city-alerts', { userId, city: selectedCity });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+          socket.emit('subscribe-city-alerts', { userId, city: selectedCity });
+        } else {
+          showToast('Notification permission denied.', 'warning');
+        }
+      });
+    } else {
+      showToast('Notification permission has been blocked. Please enable it in browser settings.', 'warning');
     }
   };
 
@@ -1635,6 +1678,19 @@ export default function App() {
                         <p className="text-[11px] text-text-secondary mt-1">
                           No one is online in your city right now. Would you like to expand your search and match with someone globally?
                         </p>
+                        
+                        <button
+                          onClick={handleSubscribeCityAlerts}
+                          className={`mt-3 w-full py-2 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border ${
+                            isSubscribedToCityAlerts 
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 cursor-default' 
+                              : 'bg-violet-500/10 border-violet-500/30 text-violet-300 hover:bg-violet-500/20 hover:scale-105 active:scale-95 animate-pulse'
+                          }`}
+                          disabled={isSubscribedToCityAlerts}
+                        >
+                          {isSubscribedToCityAlerts ? '🔔 Alerts Active' : `Alert me when ${selectedCity} goes active 🔔`}
+                        </button>
+
                         <div className="flex gap-2 mt-4 w-full">
                           <button 
                             onClick={handleGlobalSearch}
@@ -1653,23 +1709,39 @@ export default function App() {
                         </div>
                       </div>
                     ) : (
-                      <button
-                        onClick={handleSearch}
-                        disabled={isScanning || !isRegistered}
-                        className="btn-primary"
-                      >
-                        {isScanning ? (
-                          <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            Searching...
-                          </>
-                        ) : (
-                          <>
-                            <Radar className="w-5 h-5 animate-pulse" />
-                            Search People
-                          </>
+                      <div className="flex flex-col items-center gap-3 w-full">
+                        <button
+                          onClick={handleSearch}
+                          disabled={isScanning || !isRegistered}
+                          className="btn-primary"
+                        >
+                          {isScanning ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Searching...
+                            </>
+                          ) : (
+                            <>
+                              <Radar className="w-5 h-5 animate-pulse" />
+                              Search People
+                            </>
+                          )}
+                        </button>
+                        
+                        {!isScanning && isRegistered && nearbyUsers.length === 0 && (
+                          <button
+                            onClick={handleSubscribeCityAlerts}
+                            className={`py-2 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border max-w-xs w-full ${
+                              isSubscribedToCityAlerts 
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 cursor-default' 
+                                : 'bg-violet-500/10 border-violet-500/30 text-violet-300 hover:bg-violet-500/20 hover:scale-105 active:scale-95 animate-pulse'
+                            }`}
+                            disabled={isSubscribedToCityAlerts}
+                          >
+                            {isSubscribedToCityAlerts ? '🔔 Alerts Active' : `Alert me when ${selectedCity} goes active 🔔`}
+                          </button>
                         )}
-                      </button>
+                      </div>
                     )}
                     
                     <span className="text-[10px] text-text-muted flex items-center gap-1">

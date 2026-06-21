@@ -208,6 +208,39 @@ io.on('connection', (socket) => {
     socket.emit('registration-success', { userId, alias: newUser.alias });
     console.log(`User registered: ${newUser.alias} (${userId}) at location [${newUser.location.lat}, ${newUser.location.lng}]`);
     broadcastAdminStats();
+
+    // Notify users who subscribed to alerts for this city
+    users.forEach((otherUser) => {
+      if (otherUser.id !== userId && otherUser.isOnline && otherUser.subscribedCityAlerts === newUser.city) {
+        // Mutual gender preference filter
+        if (newUser.genderPreference !== 'any' && newUser.genderPreference !== otherUser.gender) return;
+        if (otherUser.genderPreference !== 'any' && otherUser.genderPreference !== newUser.gender) return;
+
+        if (otherUser.socketId) {
+          io.to(otherUser.socketId).emit('city-alert-new-user', {
+            city: newUser.city,
+            alias: newUser.alias
+          });
+        }
+      }
+    });
+  });
+
+  // Handle subscribing to city alerts
+  socket.on('subscribe-city-alerts', (data: { userId: string; city: string }) => {
+    if (rateLimitCheck(socket.id, 'subscribe-city-alerts', 10)) {
+      socket.emit('error-msg', 'Rate limit exceeded. Please slow down.');
+      return;
+    }
+    const user = users.get(data.userId);
+    if (user) {
+      user.subscribedCityAlerts = data.city;
+      users.set(data.userId, user);
+      console.log(`User ${user.alias} subscribed to alerts for city: ${data.city}`);
+      socket.emit('subscribe-city-alerts-success', { city: data.city });
+    } else {
+      socket.emit('error-msg', 'User session not found.');
+    }
   });
 
   // Handle location update heartbeats

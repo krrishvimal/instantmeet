@@ -19,6 +19,7 @@ export interface User {
   isOnline: boolean;
   isVisible: boolean;
   stealthMode: boolean;
+  subscribedCityAlerts?: string;
 }
 
 export interface Connection {
