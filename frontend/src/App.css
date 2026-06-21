@@ -1558,3 +1558,241 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .animate-fadeIn {
   animation: fadeIn 0.25s ease-out forwards !important;
 }
+
+/* --- NOTIFICATION DROPDOWN STYLES --- */
+
+.bell-btn {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 10px !important;
+  color: white !important;
+  padding: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  outline: none !important;
+}
+
+.bell-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  transform: scale(1.05) !important;
+}
+
+.bell-badge-dot {
+  position: absolute !important;
+  top: -2px !important;
+  right: -2px !important;
+  width: 8px !important;
+  height: 8px !important;
+  background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%) !important;
+  border-radius: 50% !important;
+  box-shadow: 0 0 8px #ec4899, 0 0 12px #a855f7 !important;
+  animation: pulseBadge 1.5s infinite !important;
+}
+
+@keyframes pulseBadge {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.notification-dropdown {
+  position: absolute !important;
+  top: 100% !important;
+  right: 0 !important;
+  margin-top: 12px !important;
+  width: 320px !important;
+  max-height: 420px !important;
+  background: rgba(11, 7, 30, 0.92) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.notif-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 12px 16px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.notif-header h4 {
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  color: white !important;
+  margin: 0 !important;
+}
+
+.clear-all-btn {
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  color: #a855f7 !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  padding: 0 !important;
+}
+
+.clear-all-btn:hover {
+  color: #c084fc !important;
+  text-decoration: underline !important;
+}
+
+.notif-list {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  max-height: 360px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.notif-empty {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 40px 20px !important;
+  text-align: center !important;
+  color: #64748b !important;
+}
+
+.notif-empty p {
+  font-size: 0.75rem !important;
+  margin: 0 !important;
+}
+
+.notif-item {
+  display: flex !important;
+  gap: 12px !important;
+  padding: 14px 16px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.notif-item:hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+.notif-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  overflow: hidden !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  flex-shrink: 0 !important;
+}
+
+.notif-avatar img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.notif-body {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  font-size: 0.75rem !important;
+  line-height: 1.35 !important;
+  color: #e2e8f0 !important;
+}
+
+.notif-text {
+  margin: 0 0 4px 0 !important;
+}
+
+.notif-message-bubble {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px !important;
+  padding: 6px 10px !important;
+  color: #94a3b8 !important;
+  font-style: italic !important;
+  margin: 4px 0 8px 0 !important;
+  word-break: break-word !important;
+}
+
+.notif-actions {
+  display: flex !important;
+  gap: 8px !important;
+  margin-top: 4px !important;
+}
+
+.notif-btn-accept {
+  padding: 5px 12px !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  color: #030014 !important;
+  background: linear-gradient(135deg, #06b6d4 0%, #a855f7 100%) !important;
+  border: none !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+}
+
+.notif-btn-accept:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3) !important;
+}
+
+.notif-btn-decline {
+  padding: 5px 12px !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  color: #94a3b8 !important;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+}
+
+.notif-btn-decline:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: white !important;
+}
+
+.notif-preview {
+  color: #94a3b8 !important;
+  font-size: 0.7rem !important;
+  margin: 0 0 2px 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 220px !important;
+}
+
+.notif-time {
+  font-size: 0.6rem !important;
+  color: #a855f7 !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Mobile specific overrides for dropdown positioning */
+@media (max-width: 1023px) {
+  .notification-dropdown {
+    right: -60px !important;
+    width: 290px !important;
+    top: 100% !important;
+    margin-top: 16px !important;
+  }
+  .bell-btn {
+    padding: 6px !important;
+  }
+}
+

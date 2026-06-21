@@ -29,7 +29,8 @@ import {
   X,
   MoreVertical,
   Globe,
-  Gamepad2
+  Gamepad2,
+  BellOff
 } from 'lucide-react';
 import './App.css';
 
@@ -161,6 +162,16 @@ interface ToastMessage {
   type: 'info' | 'success' | 'error' | 'warning';
 }
 
+interface Notification {
+  id: string;
+  type: 'wave' | 'message';
+  fromUserId: string;
+  fromUserAlias: string;
+  message: string;
+  timestamp: Date;
+  connectionId?: string;
+}
+
 export default function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -259,6 +270,9 @@ export default function App() {
     message: string;
   } | null>(null);
 
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
   const [showChatMenu, setShowChatMenu] = useState(false);
 
   // Custom Safety Options Modal State
@@ -300,6 +314,16 @@ export default function App() {
   useEffect(() => {
     userIdRef.current = userId;
   }, [userId]);
+
+  const activeConnectionIdRef = useRef(activeConnectionId);
+  useEffect(() => {
+    activeConnectionIdRef.current = activeConnectionId;
+  }, [activeConnectionId]);
+
+  const activeConnectionsRef = useRef(activeConnections);
+  useEffect(() => {
+    activeConnectionsRef.current = activeConnections;
+  }, [activeConnections]);
 
   // Keep latest registration data in a ref to use during auto-reconnection
   const regDataRef = useRef({
@@ -387,7 +411,17 @@ export default function App() {
       fromUserAlias: string;
       message: string;
     }) => {
-      setIncomingRequest(data);
+      const newNotif: Notification = {
+        id: `wave-${data.connectionId}-${Date.now()}`,
+        type: 'wave',
+        fromUserId: data.fromUserId,
+        fromUserAlias: data.fromUserAlias,
+        message: data.message,
+        timestamp: new Date(),
+        connectionId: data.connectionId,
+      };
+      setNotifications((prev) => [newNotif, ...prev]);
+      showToast(`New wave from @${data.fromUserAlias}! 👋`, 'info');
     });
 
     socketInstance.on('connection-accepted', (data: {
@@ -399,6 +433,7 @@ export default function App() {
       setActivePartner({ id: data.partnerId, alias: data.partnerAlias });
       setChatMessages([]);
       setIncomingRequest(null);
+      setNotifications((prev) => prev.filter((n) => n.connectionId !== data.connectionId));
 
       // Add to active connections
       setActiveConnections((prev) => {
@@ -419,6 +454,23 @@ export default function App() {
 
     socketInstance.on('chat-message', (msg: Message) => {
       setChatMessages((prev) => [...prev, msg]);
+
+      if (activeConnectionIdRef.current !== msg.connectionId && msg.senderId !== userIdRef.current) {
+        const conn = activeConnectionsRef.current.find((c) => c.id === msg.connectionId);
+        const partnerAlias = conn ? conn.partnerAlias : 'Someone';
+
+        const newNotif: Notification = {
+          id: `msg-${msg.id}-${Date.now()}`,
+          type: 'message',
+          fromUserId: msg.senderId,
+          fromUserAlias: partnerAlias,
+          message: msg.text,
+          timestamp: new Date(),
+          connectionId: msg.connectionId,
+        };
+        setNotifications((prev) => [newNotif, ...prev]);
+        showToast(`New message from @${partnerAlias}`, 'info');
+      }
     });
 
     socketInstance.on('partner-requested-reveal', () => {});
@@ -739,12 +791,37 @@ export default function App() {
   };
 
   // Accept incoming connection request
-  const handleAcceptRequest = () => {
-    if (!socket || !incomingRequest) return;
+  const handleAcceptRequest = (customConnId?: string, notificationId?: string) => {
+    if (!socket) return;
+    const finalConnId = customConnId || incomingRequest?.connectionId;
+    if (!finalConnId) return;
+
     socket.emit('accept-connection-request', {
-      connectionId: incomingRequest.connectionId,
+      connectionId: finalConnId,
       userId,
     });
+
+    if (notificationId) {
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    }
+  };
+
+  // Decline/Ignore incoming connection request
+  const handleDeclineRequest = (notificationId: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+  };
+
+  // Click on a message notification to open chat room
+  const handleSelectNotification = (notif: Notification) => {
+    if (notif.type === 'message' && notif.connectionId) {
+      const conn = activeConnections.find((c) => c.id === notif.connectionId);
+      if (conn) {
+        handleRecentCardClick(conn);
+        setActiveTab('chats');
+      }
+    }
+    setNotifications((prev) => prev.filter((n) => n.id !== notif.id));
+    setShowNotifications(false);
   };
 
   // Click on a connection card to open chat room and load history
@@ -986,6 +1063,79 @@ export default function App() {
     socket.emit('admin-unban-user', { targetUserId });
   };
 
+  // Render notification dropdown drawer (used on both desktop and mobile headers)
+  const renderNotificationDropdown = () => {
+    if (!showNotifications) return null;
+    return (
+      <div className="notification-dropdown glass-panel animate-scaleUp">
+        <div className="notif-header">
+          <h4>Notifications</h4>
+          {notifications.length > 0 && (
+            <button onClick={() => setNotifications([])} className="clear-all-btn">
+              Clear All
+            </button>
+          )}
+        </div>
+        
+        <div className="notif-list">
+          {notifications.length === 0 ? (
+            <div className="notif-empty">
+              <BellOff className="w-8 h-8 text-text-muted mb-2" />
+              <p>No new notifications</p>
+            </div>
+          ) : (
+            notifications.map((n) => (
+              <div key={n.id} className="notif-item">
+                <div className="notif-avatar">
+                  <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${n.fromUserAlias}`} alt="Avatar" className="w-full h-full object-cover" />
+                </div>
+                
+                <div className="notif-body">
+                  {n.type === 'wave' ? (
+                    <>
+                      <p className="notif-text">
+                        <span className="font-bold text-violet-400">@{n.fromUserAlias}</span> sent you a wave request!
+                      </p>
+                      {n.message && <p className="notif-message-bubble">"{n.message}"</p>}
+                      <div className="notif-actions">
+                        <button 
+                          className="notif-btn-accept" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAcceptRequest(n.connectionId || '', n.id);
+                          }}
+                        >
+                          Accept
+                        </button>
+                        <button 
+                          className="notif-btn-decline" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeclineRequest(n.id);
+                          }}
+                        >
+                          Ignore
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div onClick={() => handleSelectNotification(n)} className="cursor-pointer">
+                      <p className="notif-text">
+                        New message from <span className="font-bold text-cyan-400">@{n.fromUserAlias}</span>
+                      </p>
+                      <p className="notif-preview">{n.message}</p>
+                      <span className="notif-time">Click to reply</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex-1 flex flex-col p-4 md:p-8 min-h-screen">
       
@@ -1010,6 +1160,19 @@ export default function App() {
             <MapPin className="w-3.5 h-3.5" />
             <span>{selectedCity}</span>
           </button>
+
+          <div className="relative flex items-center">
+            <button 
+              className={`bell-btn ${notifications.length > 0 ? 'has-notifications' : ''}`} 
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              <Bell className="w-4 h-4" />
+              {notifications.length > 0 && (
+                <span className="bell-badge-dot"></span>
+              )}
+            </button>
+            {renderNotificationDropdown()}
+          </div>
 
           <div 
             onClick={() => { setActiveTab('settings'); setActiveConnectionId(null); }}
@@ -2342,9 +2505,18 @@ export default function App() {
               <span className="text-text-secondary">{isConnected ? 'Server Live' : 'Connecting'}</span>
             </div>
 
-            <button className="bell-btn" onClick={() => showToast('No new notifications.', 'info')}>
-              <Bell className="w-5 h-5" />
-            </button>
+            <div className="relative">
+              <button 
+                className={`bell-btn ${notifications.length > 0 ? 'has-notifications' : ''}`} 
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <Bell className="w-5 h-5" />
+                {notifications.length > 0 && (
+                  <span className="bell-badge-dot"></span>
+                )}
+              </button>
+              {renderNotificationDropdown()}
+            </div>
             
             {/* User Info dropdown slot */}
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setActiveTab('settings'); setActiveConnectionId(null); }} title="Click to view and edit profile settings">
@@ -2406,49 +2578,7 @@ export default function App() {
 
       </div>
 
-      {/* Incoming wave requests notification */}
-      {incomingRequest && (
-        <div className="modal-overlay">
-          <div className="glass-panel modal-card border-cyan-500/20" style={{ maxWidth: '400px' }}>
-            <div className="modal-header">
-              <div className="modal-header-icon" style={{ background: 'rgba(6, 182, 212, 0.1)', border: '1px solid rgba(6, 182, 212, 0.2)', color: '#22d3ee' }}>
-                <Compass className="w-5 h-5 animate-pulse" />
-              </div>
-              <div className="modal-header-info">
-                <h4>Incoming Wave!</h4>
-                <p>Someone in your city wants to connect</p>
-              </div>
-            </div>
 
-            <div className="modal-divider" />
-
-            <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', marginBottom: '20px' }}>
-              <p style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', margin: '0 0 6px 0' }}>@{incomingRequest.fromUserAlias}</p>
-              <p style={{ fontSize: '0.85rem', color: '#fff', fontStyle: 'italic', margin: 0 }}>"{incomingRequest.message}"</p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setIncomingRequest(null)}
-                style={{ flex: 1, padding: '11px 16px', borderRadius: '12px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                Decline
-              </button>
-              <button
-                onClick={handleAcceptRequest}
-                style={{ flex: 1, padding: '11px 16px', borderRadius: '12px', background: 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)', border: 'none', color: '#000', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: '0 4px 15px rgba(6, 182, 212, 0.3)', transition: 'all 0.25s' }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-              >
-                <MessageSquare className="w-4 h-4" />
-                Chat Now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Privacy modal popup explanation */}
       {showPrivacyModal && (
