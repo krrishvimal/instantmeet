@@ -28,7 +28,8 @@ import {
   ArrowLeft,
   X,
   MoreVertical,
-  Globe
+  Globe,
+  Gamepad2
 } from 'lucide-react';
 import './App.css';
 
@@ -214,6 +215,31 @@ export default function App() {
   const [selectedNode, setSelectedNode] = useState<SearchResult | null>(null);
   const [isGlobalSearchActive, setIsGlobalSearchActive] = useState(false);
   const [showGlobalFallbackPrompt, setShowGlobalFallbackPrompt] = useState(false);
+
+  // Multiplayer Game States
+  const [activeGame, setActiveGame] = useState<'tictactoe' | 'drawguess' | null>(null);
+  const [showGameSelector, setShowGameSelector] = useState(false);
+  const [gameScores, setGameScores] = useState<{ [userId: string]: number }>({});
+  
+  // Tic Tac Toe States
+  const [tttBoard, setTttBoard] = useState<(string | null)[]>(Array(9).fill(null));
+  const [tttTurn, setTttTurn] = useState<string>(''); // userId
+  const [tttWinner, setTttWinner] = useState<string | null>(null); // userId, 'draw', or null
+
+  // Draw & Guess States
+  const [dgDrawerId, setDgDrawerId] = useState<string>('');
+  const [dgWord, setDgWord] = useState<string>(''); // secret word (only drawer sees)
+  const [dgHint, setDgHint] = useState<string>(''); // hint (blank underscores)
+  const [dgGuessInput, setDgGuessInput] = useState<string>('');
+  const [dgCelebration, setDgCelebration] = useState<{ winnerAlias: string; word: string } | null>(null);
+  const [dgIncorrectGuess, setDgIncorrectGuess] = useState<string>('');
+
+  // Canvas drawing refs
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isDrawingRef = useRef(false);
+  const prevCoordsRef = useRef<{ x: number; y: number } | null>(null);
+  const [drawColor, setDrawColor] = useState<string>('#a855f7'); // default violet
+  const [brushSize, setBrushSize] = useState<number>(3);
 
   // Chat / Connection State
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
@@ -470,6 +496,120 @@ export default function App() {
       setAdminStats(stats);
     });
 
+    // --- MULTIPLAYER GAME EVENT LISTENERS ---
+    socketInstance.on('game-started', (data: { 
+      gameType: 'tictactoe' | 'drawguess'; 
+      scores: { [userId: string]: number };
+      tictactoe?: { board: (string | null)[]; turn: string; winner: string | null };
+      drawguess?: { drawerId: string; word?: string; hint: string };
+    }) => {
+      setActiveGame(data.gameType);
+      setGameScores(data.scores);
+      setShowGameSelector(false);
+      setDgCelebration(null);
+      setDgIncorrectGuess('');
+
+      if (data.gameType === 'tictactoe' && data.tictactoe) {
+        setTttBoard(data.tictactoe.board);
+        setTttTurn(data.tictactoe.turn);
+        setTttWinner(data.tictactoe.winner);
+      } else if (data.gameType === 'drawguess' && data.drawguess) {
+        setDgDrawerId(data.drawguess.drawerId);
+        setDgWord(data.drawguess.word || '');
+        setDgHint(data.drawguess.hint);
+        if (canvasRef.current) {
+          const ctx = canvasRef.current.getContext('2d');
+          if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        }
+      }
+    });
+
+    socketInstance.on('game-tictactoe-state', (data: { 
+      board: (string | null)[]; 
+      turn: string; 
+      winner: string | null;
+      scores: { [userId: string]: number };
+    }) => {
+      setTttBoard(data.board);
+      setTttTurn(data.turn);
+      setTttWinner(data.winner);
+      setGameScores(data.scores);
+    });
+
+    socketInstance.on('game-draw-stroke', (stroke: { 
+      x: number; y: number; prevX: number; prevY: number; color: string; size: number 
+    }) => {
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) {
+          ctx.beginPath();
+          ctx.strokeStyle = stroke.color;
+          ctx.lineWidth = stroke.size;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.moveTo(stroke.prevX, stroke.prevY);
+          ctx.lineTo(stroke.x, stroke.y);
+          ctx.stroke();
+        }
+      }
+    });
+
+    socketInstance.on('game-draw-clear', () => {
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    });
+
+    socketInstance.on('game-draw-correct', (data: { 
+      winnerId: string; 
+      scores: { [userId: string]: number };
+      correctWord: string;
+      nextDrawerId: string;
+      nextHint: string;
+    }) => {
+      setGameScores(data.scores);
+      const isMeWinner = data.winnerId === userId;
+      // Accessing activePartner state directly is safe as it is set when the room is opened
+      const winnerName = isMeWinner ? 'You' : 'Partner';
+      setDgCelebration({ winnerAlias: winnerName, word: data.correctWord });
+      
+      setTimeout(() => {
+        setDgCelebration(null);
+      }, 2500);
+    });
+
+    socketInstance.on('game-draw-new-round', (data: {
+      drawerId: string;
+      hint: string;
+      word?: string;
+      scores: { [userId: string]: number };
+    }) => {
+      setDgDrawerId(data.drawerId);
+      setDgHint(data.hint);
+      setDgWord(data.word || '');
+      setGameScores(data.scores);
+      setDgGuessInput('');
+      setDgIncorrectGuess('');
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    });
+
+    socketInstance.on('game-draw-incorrect-guess', (data: { guess: string }) => {
+      setDgIncorrectGuess(data.guess);
+      setTimeout(() => {
+        setDgIncorrectGuess('');
+      }, 1500);
+    });
+
+    socketInstance.on('game-exited', () => {
+      setActiveGame(null);
+      setDgCelebration(null);
+      setDgIncorrectGuess('');
+    });
+
     setSocket(socketInstance);
 
     return () => {
@@ -618,6 +758,150 @@ export default function App() {
     if (socket) {
       socket.emit('get-chat-history', { connectionId: conn.id });
     }
+  };
+
+  // --- MULTIPLAYER GAME HELPER FUNCTIONS ---
+
+  // Initiate a game session
+  const handleStartGame = (gameType: 'tictactoe' | 'drawguess') => {
+    if (!socket || !activeConnectionId || !userId) return;
+    socket.emit('game-start', {
+      connectionId: activeConnectionId,
+      gameType,
+      fromUserId: userId
+    });
+    setShowGameSelector(false);
+  };
+
+  // Click on a Tic Tac Toe cell
+  const handleTttCellClick = (index: number) => {
+    if (activeGame !== 'tictactoe' || !socket || !activeConnectionId || !userId) return;
+    if (tttTurn !== userId) {
+      showToast("It's not your turn!", 'warning');
+      return;
+    }
+    if (tttBoard[index] !== null) return;
+    if (tttWinner) return;
+
+    socket.emit('game-tictactoe-move', {
+      connectionId: activeConnectionId,
+      userId,
+      cellIndex: index
+    });
+  };
+
+  // Reset/Replay Tic Tac Toe
+  const handleTttReset = () => {
+    if (!socket || !activeConnectionId || !userId) return;
+    socket.emit('game-start', {
+      connectionId: activeConnectionId,
+      gameType: 'tictactoe',
+      fromUserId: userId
+    });
+  };
+
+  // Draw & Guess Canvas drawing handlers
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (activeGame !== 'drawguess' || dgDrawerId !== userId || !canvasRef.current) return;
+    isDrawingRef.current = true;
+    const coords = getCanvasCoords(e);
+    prevCoordsRef.current = coords;
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawingRef.current || !canvasRef.current || !prevCoordsRef.current || !socket || !activeConnectionId) return;
+    
+    // Prevent scrolling on mobile touch screens
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+
+    const coords = getCanvasCoords(e);
+    const prev = prevCoordsRef.current;
+    
+    const ctx = canvasRef.current.getContext('2d');
+    if (ctx) {
+      ctx.beginPath();
+      ctx.strokeStyle = drawColor;
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(coords.x, coords.y);
+      ctx.stroke();
+      
+      socket.emit('game-draw-stroke', {
+        connectionId: activeConnectionId,
+        stroke: {
+          x: coords.x,
+          y: coords.y,
+          prevX: prev.x,
+          prevY: prev.y,
+          color: drawColor,
+          size: brushSize
+        }
+      });
+      
+      prevCoordsRef.current = coords;
+    }
+  };
+
+  const stopDrawing = () => {
+    isDrawingRef.current = false;
+    prevCoordsRef.current = null;
+  };
+
+  const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current) return { x: 0, y: 0 };
+    const rect = canvasRef.current.getBoundingClientRect();
+    
+    let clientX = 0;
+    let clientY = 0;
+    
+    if ('touches' in e) {
+      if (e.touches.length === 0) return { x: 0, y: 0 };
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    // Scale coords to match canvas internal coordinates (500x350)
+    const x = ((clientX - rect.left) / rect.width) * canvasRef.current.width;
+    const y = ((clientY - rect.top) / rect.height) * canvasRef.current.height;
+    
+    return { x, y };
+  };
+
+  const clearCanvas = () => {
+    if (!canvasRef.current || !socket || !activeConnectionId) return;
+    const ctx = canvasRef.current.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    
+    socket.emit('game-draw-clear', { connectionId: activeConnectionId });
+  };
+
+  // Submit guess
+  const handleSendGuess = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dgGuessInput.trim() || !socket || !activeConnectionId || !userId) return;
+
+    socket.emit('game-draw-guess', {
+      connectionId: activeConnectionId,
+      guess: dgGuessInput.trim(),
+      userId
+    });
+    setDgGuessInput('');
+  };
+
+  // Exit/Close current game
+  const handleExitGame = () => {
+    if (!socket || !activeConnectionId) return;
+    socket.emit('game-exit', { connectionId: activeConnectionId });
+    setActiveGame(null);
+    setDgCelebration(null);
+    setDgIncorrectGuess('');
   };
 
   // Send message
@@ -1608,6 +1892,246 @@ export default function App() {
             ) : (
               /* Real-time Glassmorphic Chat Panel */
               <div className="centerpiece-chat-panel">
+                
+                {/* --- GAME OVERLAYS --- */}
+
+                {/* Tic Tac Toe Game Overlay */}
+                {activeGame === 'tictactoe' && (
+                  <div className="game-overlay animate-fadeIn">
+                    {/* Game Scoreboard Header */}
+                    <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4 w-full">
+                      {/* Left Player: Me */}
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full border border-violet-500/20 overflow-hidden bg-white/5 flex items-center justify-center">
+                          <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`} alt="Me" className="w-full h-full" />
+                        </div>
+                        <div className="text-left">
+                          <h5 className="text-xs font-bold text-violet-400">@You (X)</h5>
+                          <span className="text-[10px] text-text-secondary">{gameScores[userId] || 0} pts</span>
+                        </div>
+                      </div>
+
+                      {/* Middle Status / controls */}
+                      <div className="text-center">
+                        <span className="text-xs uppercase font-extrabold tracking-widest text-violet-300">Tic Tac Toe</span>
+                        <p className="text-[10px] text-cyan-400 font-semibold mt-0.5">
+                          {tttWinner ? (
+                            tttWinner === 'draw' ? "It's a draw!" : tttWinner === userId ? "🎉 You Won!" : `🎉 @${activePartner?.alias} Won!`
+                          ) : (
+                            tttTurn === userId ? "👉 Your turn" : `Waiting for @${activePartner?.alias}...`
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Right Player: Partner */}
+                      <div className="flex items-center gap-2 text-right justify-end">
+                        <div className="text-right">
+                          <h5 className="text-xs font-bold text-cyan-400">@{activePartner?.alias} (O)</h5>
+                          <span className="text-[10px] text-text-secondary">{gameScores[activePartner?.id || ''] || 0} pts</span>
+                        </div>
+                        <div className="w-8 h-8 rounded-full border border-cyan-500/20 overflow-hidden bg-white/5 flex items-center justify-center">
+                          <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} alt="Partner" className="w-full h-full" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tic Tac Toe Grid Board */}
+                    <div className="flex-1 flex flex-col justify-center items-center">
+                      <div className="tictactoe-grid">
+                        {tttBoard.map((cell, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleTttCellClick(idx)}
+                            className={`tictactoe-cell ${cell === 'X' ? 'token-x' : cell === 'O' ? 'token-o' : ''}`}
+                            disabled={!!tttWinner}
+                          >
+                            {cell}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Action buttons footer */}
+                    <div className="flex justify-center gap-3 border-t border-white/10 pt-3 mt-4 w-full">
+                      {tttWinner && (
+                        <button 
+                          onClick={handleTttReset}
+                          className="btn-primary py-2 px-6 text-xs"
+                        >
+                          Play Again
+                        </button>
+                      )}
+                      <button 
+                        onClick={handleExitGame}
+                        className="change-location-btn py-2 px-6 text-xs"
+                        style={{ justifyContent: 'center', width: 'auto' }}
+                      >
+                        Exit Game
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Draw & Guess Game Overlay */}
+                {activeGame === 'drawguess' && (
+                  <div className="game-overlay animate-fadeIn">
+                    {/* Game Scoreboard Header */}
+                    <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3 w-full">
+                      {/* Left Player: Me */}
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full border border-violet-500/20 overflow-hidden bg-white/5 flex items-center justify-center">
+                          <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`} alt="Me" className="w-full h-full" />
+                        </div>
+                        <div className="text-left">
+                          <h5 className="text-xs font-bold text-violet-400">@You</h5>
+                          <span className="text-[10px] text-text-secondary">{gameScores[userId] || 0} pts</span>
+                        </div>
+                      </div>
+
+                      {/* Middle Status */}
+                      <div className="text-center">
+                        <span className="text-xs uppercase font-extrabold tracking-widest text-violet-300">Draw & Guess</span>
+                        <p className="text-[10px] text-cyan-400 font-semibold mt-0.5">
+                          {dgDrawerId === userId ? (
+                            <span className="text-emerald-400 animate-pulse">🖌️ You are drawing!</span>
+                          ) : (
+                            <span className="text-cyan-400">👀 Guess the drawing!</span>
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Right Player: Partner */}
+                      <div className="flex items-center gap-2 text-right justify-end">
+                        <div className="text-right">
+                          <h5 className="text-xs font-bold text-cyan-400">@{activePartner?.alias}</h5>
+                          <span className="text-[10px] text-text-secondary">{gameScores[activePartner?.id || ''] || 0} pts</span>
+                        </div>
+                        <div className="w-8 h-8 rounded-full border border-cyan-500/20 overflow-hidden bg-white/5 flex items-center justify-center">
+                          <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} alt="Partner" className="w-full h-full" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Round Instructions banner / Word display */}
+                    <div className="glass-panel py-2 px-4 rounded-xl border-white/5 flex justify-between items-center w-full mb-3 bg-white/5">
+                      {dgDrawerId === userId ? (
+                        <>
+                          <span className="text-[10px] text-text-secondary uppercase font-bold">Secret Word to Draw:</span>
+                          <span className="text-sm font-extrabold text-emerald-400 tracking-wider font-space uppercase">{dgWord}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-[10px] text-text-secondary uppercase font-bold">Word Hint:</span>
+                          <span className="text-sm font-extrabold text-cyan-400 tracking-widest font-space uppercase">{dgHint}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Draw and Guess Canvas Section */}
+                    <div className="flex-1 flex flex-col justify-center items-center relative w-full overflow-hidden">
+                      {/* Celebration overlay */}
+                      {dgCelebration && (
+                        <div className="absolute inset-0 z-50 bg-black/85 flex flex-col justify-center items-center text-center p-4 animate-scaleUp">
+                          <span className="text-5xl mb-2 animate-bounce">🎉</span>
+                          <h4 className="font-extrabold text-white text-base">{dgCelebration.winnerAlias} Guessed It!</h4>
+                          <p className="text-xs text-violet-300 mt-1 font-semibold">The word was: <span className="text-emerald-400 uppercase font-mono tracking-wider font-extrabold">{dgCelebration.word}</span></p>
+                          <span className="text-[10px] text-text-muted mt-3 animate-pulse">Starting next round...</span>
+                        </div>
+                      )}
+
+                      {/* Canvas */}
+                      <div className="canvas-wrapper relative bg-white/5 rounded-2xl border border-white/10 overflow-hidden shadow-inner">
+                        {dgIncorrectGuess && dgDrawerId === userId && (
+                          <div className="absolute top-3 left-1/2 transform -translate-x-1/2 bg-red-500/90 text-white text-[11px] font-bold py-1.5 px-4 rounded-full shadow-lg border border-red-400/30 animate-shake">
+                            Partner guessed: "{dgIncorrectGuess}"
+                          </div>
+                        )}
+                        <canvas
+                          ref={canvasRef}
+                          width={500}
+                          height={350}
+                          onMouseDown={startDrawing}
+                          onMouseMove={draw}
+                          onMouseUp={stopDrawing}
+                          onMouseLeave={stopDrawing}
+                          onTouchStart={startDrawing}
+                          onTouchMove={draw}
+                          onTouchEnd={stopDrawing}
+                          className={`bg-[#0c081e]/40 ${dgDrawerId === userId ? 'cursor-crosshair' : 'pointer-events-none'}`}
+                        />
+                      </div>
+
+                      {/* Drawer Color Palette & Toolbar */}
+                      {dgDrawerId === userId && (
+                        <div className="flex items-center gap-3 mt-3 justify-center w-full px-2">
+                          {/* Colors */}
+                          <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full p-1">
+                            {['#a855f7', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ffffff'].map(c => (
+                              <button
+                                key={c}
+                                onClick={() => setDrawColor(c)}
+                                style={{ backgroundColor: c }}
+                                className={`w-5 h-5 rounded-full border ${drawColor === c ? 'border-white scale-125 shadow-lg' : 'border-white/10'}`}
+                              />
+                            ))}
+                          </div>
+
+                          {/* Sizes */}
+                          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-3 py-1 text-xs">
+                            <span className="text-[10px] text-text-secondary">Brush:</span>
+                            <input 
+                              type="range" 
+                              min={1} 
+                              max={15} 
+                              value={brushSize} 
+                              onChange={e => setBrushSize(parseInt(e.target.value))}
+                              className="w-16 h-1 rounded-lg accent-violet-500 cursor-pointer"
+                            />
+                          </div>
+
+                          <button
+                            onClick={clearCanvas}
+                            className="change-location-btn py-1 px-3 w-auto text-[10px]"
+                            style={{ padding: '6px 12px' }}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Guesser Input */}
+                      {dgDrawerId !== userId && (
+                        <form onSubmit={handleSendGuess} className="flex gap-2 mt-4 w-full max-w-sm px-2">
+                          <input
+                            type="text"
+                            value={dgGuessInput}
+                            onChange={e => setDgGuessInput(e.target.value.replace(/[^a-zA-Z]/g, ''))}
+                            placeholder="Type your guess here..."
+                            className="flex-1 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-violet-500 transition-all text-xs"
+                          />
+                          <button
+                            type="submit"
+                            disabled={!dgGuessInput.trim()}
+                            className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl text-xs transition-all"
+                          >
+                            Guess
+                          </button>
+                        </form>
+                      )}
+                    </div>
+
+                    {/* Exit Game Footer */}
+                    <div className="flex justify-center gap-3 border-t border-white/10 pt-3 mt-3 w-full">
+                      <button 
+                        onClick={handleExitGame}
+                        className="change-location-btn py-2 px-6 text-xs"
+                        style={{ justifyContent: 'center', width: 'auto' }}
+                      >
+                        Exit Game
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Chat Header */}
                 <div className="pb-4 flex items-center justify-between bg-transparent">
@@ -1640,9 +2164,44 @@ export default function App() {
                       Exit Room
                     </button>
                     
+                    {/* Game selector trigger */}
                     <div className="relative flex items-center">
                       <button
-                        onClick={() => setShowChatMenu(!showChatMenu)}
+                        onClick={() => {
+                          setShowGameSelector(!showGameSelector);
+                          setShowChatMenu(false);
+                        }}
+                        className="p-2 rounded-lg bg-violet-600/10 border border-violet-500/20 text-violet-400 hover:bg-violet-600/20 hover:text-violet-300 transition-all flex items-center justify-center gap-1.5"
+                        title="Play Games"
+                      >
+                        <Gamepad2 className="w-4 h-4" />
+                        <span className="text-[11px] font-bold hidden md:inline">Play</span>
+                      </button>
+
+                      {showGameSelector && (
+                        <div className="chat-dropdown-menu right-0 mt-1" style={{ top: '100%', right: 0 }}>
+                          <button
+                            onClick={() => handleStartGame('tictactoe')}
+                            className="chat-dropdown-item font-semibold flex items-center gap-2 hover:bg-violet-950/30 text-white"
+                          >
+                            🕹️ Tic Tac Toe
+                          </button>
+                          <button
+                            onClick={() => handleStartGame('drawguess')}
+                            className="chat-dropdown-item font-semibold flex items-center gap-2 hover:bg-violet-950/30 text-white"
+                          >
+                            🎨 Draw & Guess
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="relative flex items-center">
+                      <button
+                        onClick={() => {
+                          setShowChatMenu(!showChatMenu);
+                          setShowGameSelector(false);
+                        }}
                         className="p-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all"
                         title="Chat Options"
                       >

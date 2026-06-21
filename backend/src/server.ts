@@ -62,6 +62,35 @@ const users = new Map<string, User>();
 const connections = new Map<string, Connection>();
 const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
 
+// --- Multiplayer Game States ---
+interface GameSession {
+  gameType: 'tictactoe' | 'drawguess';
+  scores: { [userId: string]: number };
+  tictactoe?: {
+    board: (string | null)[];
+    turn: string;
+    winner: string | null;
+  };
+  drawguess?: {
+    drawerId: string;
+    word: string;
+    hint: string;
+    incorrectGuesses: string[];
+  };
+}
+
+const activeGames = new Map<string, GameSession>();
+
+const DRAW_GUESS_WORDS = [
+  'apple', 'banana', 'sun', 'house', 'car', 'tree', 'flower', 'fish', 'star', 'bird', 'moon', 'cake', 'hat',
+  'dog', 'cat', 'elephant', 'rocket', 'guitar', 'laptop', 'hamburger', 'pizza', 'clock', 'balloon', 'umbrella',
+  'giraffe', 'dolphin', 'spider', 'butterfly', 'penguin', 'airplane', 'train', 'submarine', 'castle', 'bridge'
+];
+
+const generateHint = (word: string) => {
+  return '_ '.repeat(word.length).trim();
+};
+
 // Admin & Moderation states
 const reportsCount = new Map<string, number>();
 const bannedUsers = new Set<string>();
@@ -691,6 +720,249 @@ io.on('connection', (socket) => {
     }
 
   });
+
+  // --- MULTIPLAYER GAME EVENTS ---
+
+  // Initiates or resets a game
+  socket.on('game-start', (data: { connectionId: string; gameType: 'tictactoe' | 'drawguess'; fromUserId: string }) => {
+    const conn = connections.get(data.connectionId);
+    if (!conn) return;
+
+    const partnerId = conn.user1Id === data.fromUserId ? conn.user2Id : conn.user1Id;
+    const partner = users.get(partnerId);
+
+    let session = activeGames.get(data.connectionId);
+    if (!session) {
+      session = {
+        gameType: data.gameType,
+        scores: {
+          [data.fromUserId]: 0,
+          [partnerId]: 0
+        }
+      };
+    } else {
+      session.gameType = data.gameType;
+    }
+
+    if (data.gameType === 'tictactoe') {
+      session.tictactoe = {
+        board: Array(9).fill(null),
+        turn: data.fromUserId, // Initiator starts first
+        winner: null
+      };
+      session.drawguess = undefined;
+    } else if (data.gameType === 'drawguess') {
+      const randWord = DRAW_GUESS_WORDS[Math.floor(Math.random() * DRAW_GUESS_WORDS.length)];
+      session.drawguess = {
+        drawerId: data.fromUserId, // Initiator draws first
+        word: randWord,
+        hint: generateHint(randWord),
+        incorrectGuesses: []
+      };
+      session.tictactoe = undefined;
+    }
+
+    activeGames.set(data.connectionId, session);
+
+    // Broadcast to initiator
+    socket.emit('game-started', {
+      gameType: session.gameType,
+      scores: session.scores,
+      tictactoe: session.tictactoe,
+      drawguess: session.drawguess ? {
+        drawerId: session.drawguess.drawerId,
+        hint: session.drawguess.hint,
+        word: session.drawguess.word // Drawer gets secret word
+      } : undefined
+    });
+
+    // Broadcast to partner
+    if (partner && partner.socketId && partner.isOnline) {
+      io.to(partner.socketId).emit('game-started', {
+        gameType: session.gameType,
+        scores: session.scores,
+        tictactoe: session.tictactoe,
+        drawguess: session.drawguess ? {
+          drawerId: session.drawguess.drawerId,
+          hint: session.drawguess.hint
+          // Guesser does NOT get the secret word!
+        } : undefined
+      });
+    }
+  });
+
+  // Tic Tac Toe Move Handler
+  socket.on('game-tictactoe-move', (data: { connectionId: string; userId: string; cellIndex: number }) => {
+    const session = activeGames.get(data.connectionId);
+    if (!session || session.gameType !== 'tictactoe' || !session.tictactoe) return;
+
+    const ttt = session.tictactoe;
+    if (ttt.turn !== data.userId) return; // Not their turn
+    if (ttt.board[data.cellIndex] !== null) return; // Cell already filled
+
+    const conn = connections.get(data.connectionId);
+    if (!conn) return;
+
+    const partnerId = conn.user1Id === data.userId ? conn.user2Id : conn.user1Id;
+    const partner = users.get(partnerId);
+
+    // Place token (X for user1, O for user2)
+    const token = data.userId === conn.user1Id ? 'X' : 'O';
+    ttt.board[data.cellIndex] = token;
+
+    // Check win condition
+    const winPatterns = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+      [0, 3, 6], [1, 4, 7], [2, 5, 8], // Cols
+      [0, 4, 8], [2, 4, 6]             // Diagonals
+    ];
+
+    let hasWon = false;
+    for (const pattern of winPatterns) {
+      const [a, b, c] = pattern;
+      if (ttt.board[a] && ttt.board[a] === ttt.board[b] && ttt.board[a] === ttt.board[c]) {
+        hasWon = true;
+        break;
+      }
+    }
+
+    if (hasWon) {
+      ttt.winner = data.userId;
+      session.scores[data.userId] = (session.scores[data.userId] || 0) + 1;
+    } else if (ttt.board.every(cell => cell !== null)) {
+      ttt.winner = 'draw';
+    } else {
+      // Toggle turn
+      ttt.turn = partnerId;
+    }
+
+    // Broadcast updated state to both
+    const updatePayload = {
+      board: ttt.board,
+      turn: ttt.turn,
+      winner: ttt.winner,
+      scores: session.scores
+    };
+
+    socket.emit('game-tictactoe-state', updatePayload);
+    if (partner && partner.socketId && partner.isOnline) {
+      io.to(partner.socketId).emit('game-tictactoe-state', updatePayload);
+    }
+  });
+
+  // Draw & Guess Stroke Synchronization
+  socket.on('game-draw-stroke', (data: { connectionId: string; stroke: any }) => {
+    const conn = connections.get(data.connectionId);
+    if (!conn) return;
+    const u1 = users.get(conn.user1Id);
+    const u2 = users.get(conn.user2Id);
+    const partner = (u1 && u1.socketId === socket.id) ? u2 : u1;
+    if (partner && partner.socketId && partner.isOnline) {
+      io.to(partner.socketId).emit('game-draw-stroke', data.stroke);
+    }
+  });
+
+  // Draw & Guess Clear Canvas
+  socket.on('game-draw-clear', (data: { connectionId: string }) => {
+    const conn = connections.get(data.connectionId);
+    if (!conn) return;
+    const u1 = users.get(conn.user1Id);
+    const u2 = users.get(conn.user2Id);
+    const partner = (u1 && u1.socketId === socket.id) ? u2 : u1;
+    if (partner && partner.socketId && partner.isOnline) {
+      io.to(partner.socketId).emit('game-draw-clear');
+    }
+  });
+
+  // Draw & Guess Guess Handler
+  socket.on('game-draw-guess', (data: { connectionId: string; guess: string; userId: string }) => {
+    const session = activeGames.get(data.connectionId);
+    if (!session || session.gameType !== 'drawguess' || !session.drawguess) return;
+
+    const dg = session.drawguess;
+    if (dg.drawerId === data.userId) return; // Drawer cannot guess!
+
+    const conn = connections.get(data.connectionId);
+    if (!conn) return;
+
+    const partnerId = conn.user1Id === data.userId ? conn.user2Id : conn.user1Id;
+    const partner = users.get(partnerId); // Drawer
+
+    const normalizedGuess = data.guess.trim().toLowerCase();
+    const normalizedWord = dg.word.trim().toLowerCase();
+
+    if (normalizedGuess === normalizedWord) {
+      // Correct Guess!
+      session.scores[data.userId] = (session.scores[data.userId] || 0) + 1;
+
+      // Select new word & swap roles
+      const nextWord = DRAW_GUESS_WORDS[Math.floor(Math.random() * DRAW_GUESS_WORDS.length)];
+      const nextDrawerId = partnerId === conn.user1Id ? conn.user2Id : conn.user1Id; // Swap drawer
+
+      dg.word = nextWord;
+      dg.hint = generateHint(nextWord);
+      dg.drawerId = nextDrawerId;
+      dg.incorrectGuesses = [];
+
+      const correctPayload = {
+        winnerId: data.userId,
+        scores: session.scores,
+        correctWord: normalizedWord,
+        nextDrawerId: dg.drawerId,
+        nextHint: dg.hint
+      };
+
+      // Emit correct guess celebration event to both
+      socket.emit('game-draw-correct', correctPayload);
+      if (partner && partner.socketId && partner.isOnline) {
+        io.to(partner.socketId).emit('game-draw-correct', correctPayload);
+      }
+
+      // Send the secret word to the new drawer, and just the hint/drawerId to the new guesser
+      const newDrawer = users.get(dg.drawerId);
+      const newGuesser = users.get(dg.drawerId === conn.user1Id ? conn.user2Id : conn.user1Id);
+
+      if (newDrawer && newDrawer.socketId && newDrawer.isOnline) {
+        io.to(newDrawer.socketId).emit('game-draw-new-round', {
+          drawerId: dg.drawerId,
+          hint: dg.hint,
+          word: dg.word,
+          scores: session.scores
+        });
+      }
+      if (newGuesser && newGuesser.socketId && newGuesser.isOnline) {
+        io.to(newGuesser.socketId).emit('game-draw-new-round', {
+          drawerId: dg.drawerId,
+          hint: dg.hint,
+          scores: session.scores
+        });
+      }
+    } else {
+      // Incorrect Guess
+      dg.incorrectGuesses.push(data.guess);
+      // Broadcast incorrect guess to the drawer
+      if (partner && partner.socketId && partner.isOnline) {
+        io.to(partner.socketId).emit('game-draw-incorrect-guess', { guess: data.guess });
+      }
+    }
+  });
+
+  // Exit Game Handler
+  socket.on('game-exit', (data: { connectionId: string }) => {
+    activeGames.delete(data.connectionId);
+    
+    const conn = connections.get(data.connectionId);
+    if (!conn) return;
+
+    // Find who called it and tell the partner
+    const u1 = users.get(conn.user1Id);
+    const u2 = users.get(conn.user2Id);
+    const partner = (u1 && u1.socketId === socket.id) ? u2 : u1;
+    if (partner && partner.socketId && partner.isOnline) {
+      io.to(partner.socketId).emit('game-exited');
+    }
+  });
+
 });
 
 // --- Stale User Cleanup (every 5 minutes, 30-minute inactivity threshold) ---

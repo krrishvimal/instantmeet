@@ -733,6 +733,7 @@ input[type="text"]:focus, input[type="number"]:focus, .bar-input:focus {
   width: 100%;
   height: 520px;
   overflow: hidden;
+  position: relative; /* Ensure absolute overlays align properly */
 }
 
 /* Mobile Top Header (Visible only on Mobile) */
@@ -1415,4 +1416,122 @@ input[type="range"]::-webkit-slider-thumb:hover {
   50% {
     transform: scale(1.04, 0.96) translateY(0.5px);
   }
+}
+
+/* --- MULTIPLAYER CHAT GAMES STYLES --- */
+
+.game-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(8, 4, 20, 0.9) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  z-index: 99 !important;
+  border-radius: 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+}
+
+/* Tic Tac Toe Grid styling */
+.tictactoe-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  grid-template-rows: repeat(3, 1fr) !important;
+  gap: 12px !important;
+  width: 260px !important;
+  height: 260px !important;
+}
+
+.tictactoe-cell {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 16px !important;
+  font-size: 2.25rem !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  outline: none !important;
+}
+
+.tictactoe-cell:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.08) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+  transform: scale(1.03) !important;
+}
+
+.tictactoe-cell:disabled {
+  cursor: not-allowed !important;
+}
+
+.tictactoe-cell.token-x {
+  color: #c084fc !important; /* light violet */
+  text-shadow: 0 0 10px rgba(168, 85, 247, 0.4) !important;
+}
+
+.tictactoe-cell.token-o {
+  color: #22d3ee !important; /* cyan */
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.4) !important;
+}
+
+/* Canvas wrapping & drawing styles */
+.canvas-wrapper {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(0, 0, 0, 0.25) !important;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8) !important;
+  width: 100% !important;
+  max-width: 440px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+}
+
+.canvas-wrapper canvas {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 440px !important;
+  display: block !important;
+  aspect-ratio: 500 / 350 !important;
+}
+
+/* Colors palette styles */
+.color-picker-dot {
+  transition: transform 0.2s !important;
+}
+.color-picker-dot:hover {
+  transform: scale(1.15) !important;
+}
+
+/* Animations */
+@keyframes shake {
+  0%, 100% { transform: translateX(-50%) rotate(0deg); }
+  20%, 60% { transform: translateX(-52%) rotate(-1deg); }
+  40%, 80% { transform: translateX(-48%) rotate(1deg); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out !important;
+}
+
+@keyframes scaleUp {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.animate-scaleUp {
+  animation: scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out forwards !important;
 }
