@@ -2569,6 +2569,16 @@ export default function App() {
                 <p>Talk, connect, and enjoy conversations.</p>
               </div>
             </div>
+
+            <div className="timeline-step">
+              <div className="timeline-icon">
+                <Gamepad2 className="w-4 h-4" />
+              </div>
+              <div className="timeline-content">
+                <h5>Play interactive games</h5>
+                <p>Play Tic Tac Toe or Draw & Guess inside chats.</p>
+              </div>
+            </div>
           </div>
 
 
