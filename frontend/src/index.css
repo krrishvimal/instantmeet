@@ -180,6 +180,12 @@ body {
 .border { border: 1px solid rgba(255, 255, 255, 0.08); }
 .border-white\/5 { border: 1px solid rgba(255, 255, 255, 0.05); }
 .border-white\/10 { border: 1px solid rgba(255, 255, 255, 0.1); }
+.border-t {
+  border-top-width: 1px !important;
+  border-bottom-width: 0 !important;
+  border-left-width: 0 !important;
+  border-right-width: 0 !important;
+}
 .border-red-500\/20 { border: 1px solid rgba(239, 68, 68, 0.2); }
 .border-red-500\/30 { border: 1px solid rgba(239, 68, 68, 0.3); }
 .border-cyan-500\/20 { border: 1px solid rgba(6, 182, 212, 0.2); }

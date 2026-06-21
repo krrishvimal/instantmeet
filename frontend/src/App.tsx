@@ -1892,7 +1892,157 @@ export default function App() {
             ) : (
               /* Real-time Glassmorphic Chat Panel */
               <div className="centerpiece-chat-panel">
-                
+
+                {/* Chat Header */}
+                <div className="pb-4 flex items-center justify-between bg-transparent">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden relative bg-white/5">
+                      <img 
+                        src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} 
+                        alt="Avatar" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-white text-sm">@{activePartner?.alias}</h4>
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Online"></div>
+                      </div>
+                      <span className="text-[10px] text-text-muted">Secure Anonymous Thread</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => { 
+                        setActiveConnectionId(null); 
+                        setActivePartner(null); 
+                        setShowChatMenu(false);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-semibold text-white hover:bg-white/10 transition-all"
+                    >
+                      Exit Room
+                    </button>
+                    
+                    {/* Game selector trigger */}
+                    <div className="relative flex items-center">
+                      <button
+                        onClick={() => {
+                          setShowGameSelector(!showGameSelector);
+                          setShowChatMenu(false);
+                        }}
+                        className="p-2 rounded-lg bg-violet-600/10 border border-violet-500/20 text-violet-400 hover:bg-violet-600/20 hover:text-violet-300 transition-all flex items-center justify-center gap-1.5"
+                        title="Play Games"
+                      >
+                        <Gamepad2 className="w-4 h-4" />
+                        <span className="text-[11px] font-bold hidden md:inline">Play</span>
+                      </button>
+
+                      {showGameSelector && (
+                        <div className="chat-dropdown-menu right-0 mt-1" style={{ top: '100%', right: 0 }}>
+                          <button
+                            onClick={() => handleStartGame('tictactoe')}
+                            className="chat-dropdown-item font-semibold flex items-center gap-2 hover:bg-violet-950/30 text-white"
+                          >
+                            🕹️ Tic Tac Toe
+                          </button>
+                          <button
+                            onClick={() => handleStartGame('drawguess')}
+                            className="chat-dropdown-item font-semibold flex items-center gap-2 hover:bg-violet-950/30 text-white"
+                          >
+                            🎨 Draw & Guess
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="relative flex items-center">
+                      <button
+                        onClick={() => {
+                          setShowChatMenu(!showChatMenu);
+                          setShowGameSelector(false);
+                        }}
+                        className="p-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all"
+                        title="Chat Options"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+
+                      {showChatMenu && (
+                        <div className="chat-dropdown-menu">
+                          <button
+                            onClick={() => {
+                              if (activeConnectionId) {
+                                handleSafetyAction('delete', activeConnectionId);
+                              }
+                              setShowChatMenu(false);
+                            }}
+                            className="chat-dropdown-item delete"
+                          >
+                            Delete Chat
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (activeConnectionId) {
+                                handleSafetyAction('block', activeConnectionId);
+                              }
+                              setShowChatMenu(false);
+                            }}
+                            className="chat-dropdown-item block"
+                          >
+                            Block User
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (activeConnectionId) {
+                                handleSafetyAction('report', activeConnectionId);
+                              }
+                              setShowChatMenu(false);
+                            }}
+                            className="chat-dropdown-item report"
+                          >
+                            Report User
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chat History Panel */}
+                <div className="chat-history-container">
+                  {chatMessages.map((msg) => {
+                    const isMe = msg.senderId === userId;
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`message-bubble ${isMe ? 'message-sent' : 'message-received'}`}
+                      >
+                        <div>{sanitizeText(msg.text)}</div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Input Form */}
+                <form onSubmit={handleSendMessage} className="p-3 border-t border-white/10 flex gap-2">
+                  <input
+                    type="text"
+                    value={typedMessage}
+                    onChange={(e) => setTypedMessage(e.target.value)}
+                    placeholder="Type secure message..."
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-violet-500/60 transition-all text-sm"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!typedMessage.trim()}
+                    className="p-2.5 rounded-xl bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-50 transition-all flex items-center justify-center shadow-md shadow-violet-600/20"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </form>
+
                 {/* --- GAME OVERLAYS --- */}
 
                 {/* Tic Tac Toe Game Overlay */}
@@ -1952,7 +2102,7 @@ export default function App() {
                     </div>
 
                     {/* Action buttons footer */}
-                    <div className="flex justify-center gap-3 border-t border-white/10 pt-3 mt-4 w-full">
+                    <div className="flex justify-center gap-3 pt-3 mt-4 w-full">
                       {tttWinner && (
                         <button 
                           onClick={handleTttReset}
@@ -2120,7 +2270,7 @@ export default function App() {
                     </div>
 
                     {/* Exit Game Footer */}
-                    <div className="flex justify-center gap-3 border-t border-white/10 pt-3 mt-3 w-full">
+                    <div className="flex justify-center gap-3 pt-3 mt-3 w-full">
                       <button 
                         onClick={handleExitGame}
                         className="game-btn-secondary py-2 px-6 text-xs"
@@ -2130,156 +2280,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-
-                {/* Chat Header */}
-                <div className="pb-4 flex items-center justify-between bg-transparent">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden relative bg-white/5">
-                      <img 
-                        src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} 
-                        alt="Avatar" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-white text-sm">@{activePartner?.alias}</h4>
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Online"></div>
-                      </div>
-                      <span className="text-[10px] text-text-muted">Secure Anonymous Thread</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => { 
-                        setActiveConnectionId(null); 
-                        setActivePartner(null); 
-                        setShowChatMenu(false);
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-semibold text-white hover:bg-white/10 transition-all"
-                    >
-                      Exit Room
-                    </button>
-                    
-                    {/* Game selector trigger */}
-                    <div className="relative flex items-center">
-                      <button
-                        onClick={() => {
-                          setShowGameSelector(!showGameSelector);
-                          setShowChatMenu(false);
-                        }}
-                        className="p-2 rounded-lg bg-violet-600/10 border border-violet-500/20 text-violet-400 hover:bg-violet-600/20 hover:text-violet-300 transition-all flex items-center justify-center gap-1.5"
-                        title="Play Games"
-                      >
-                        <Gamepad2 className="w-4 h-4" />
-                        <span className="text-[11px] font-bold hidden md:inline">Play</span>
-                      </button>
-
-                      {showGameSelector && (
-                        <div className="chat-dropdown-menu right-0 mt-1" style={{ top: '100%', right: 0 }}>
-                          <button
-                            onClick={() => handleStartGame('tictactoe')}
-                            className="chat-dropdown-item font-semibold flex items-center gap-2 hover:bg-violet-950/30 text-white"
-                          >
-                            🕹️ Tic Tac Toe
-                          </button>
-                          <button
-                            onClick={() => handleStartGame('drawguess')}
-                            className="chat-dropdown-item font-semibold flex items-center gap-2 hover:bg-violet-950/30 text-white"
-                          >
-                            🎨 Draw & Guess
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="relative flex items-center">
-                      <button
-                        onClick={() => {
-                          setShowChatMenu(!showChatMenu);
-                          setShowGameSelector(false);
-                        }}
-                        className="p-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all"
-                        title="Chat Options"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-
-                      {showChatMenu && (
-                        <div className="chat-dropdown-menu">
-                          <button
-                            onClick={() => {
-                              if (activeConnectionId) {
-                                handleSafetyAction('delete', activeConnectionId);
-                              }
-                              setShowChatMenu(false);
-                            }}
-                            className="chat-dropdown-item delete"
-                          >
-                            Delete Chat
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (activeConnectionId) {
-                                handleSafetyAction('block', activeConnectionId);
-                              }
-                              setShowChatMenu(false);
-                            }}
-                            className="chat-dropdown-item block"
-                          >
-                            Block User
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (activeConnectionId) {
-                                handleSafetyAction('report', activeConnectionId);
-                              }
-                              setShowChatMenu(false);
-                            }}
-                            className="chat-dropdown-item report"
-                          >
-                            Report User
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Chat History Panel */}
-                <div className="chat-history-container">
-                  {chatMessages.map((msg) => {
-                    const isMe = msg.senderId === userId;
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`message-bubble ${isMe ? 'message-sent' : 'message-received'}`}
-                      >
-                        <div>{sanitizeText(msg.text)}</div>
-                      </div>
-                    );
-                  })}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Input Form */}
-                <form onSubmit={handleSendMessage} className="p-3 border-t border-white/10 flex gap-2">
-                  <input
-                    type="text"
-                    value={typedMessage}
-                    onChange={(e) => setTypedMessage(e.target.value)}
-                    placeholder="Type secure message..."
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-violet-500/60 transition-all text-sm"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!typedMessage.trim()}
-                    className="p-2.5 rounded-xl bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-50 transition-all flex items-center justify-center shadow-md shadow-violet-600/20"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                </form>
               </div>
             )}
           </div>
