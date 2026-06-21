@@ -1426,15 +1426,38 @@ input[type="range"]::-webkit-slider-thumb:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(8, 4, 20, 0.9) !important;
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
+  background: #0b071e !important; /* Solid background to prevent chat input form showing through */
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
   z-index: 99 !important;
   border-radius: 20px !important;
   display: flex !important;
   flex-direction: column !important;
   padding: 24px !important;
   box-sizing: border-box !important;
+}
+
+/* Dedicated Game Button style */
+.game-btn-secondary {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: white !important;
+  border-radius: 9999px !important;
+  font-size: 0.8rem !important;
+  padding: 10px 20px !important;
+  font-family: 'Outfit', sans-serif !important;
+  font-weight: 600 !important;
+  transition: all 0.25s ease !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-decoration: none !important;
+  outline: none !important;
+}
+
+.game-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 /* Tic Tac Toe Grid styling */

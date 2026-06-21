@@ -1963,8 +1963,7 @@ export default function App() {
                       )}
                       <button 
                         onClick={handleExitGame}
-                        className="change-location-btn py-2 px-6 text-xs"
-                        style={{ justifyContent: 'center', width: 'auto' }}
+                        className="game-btn-secondary py-2 px-6 text-xs"
                       >
                         Exit Game
                       </button>
@@ -2091,7 +2090,7 @@ export default function App() {
 
                           <button
                             onClick={clearCanvas}
-                            className="change-location-btn py-1 px-3 w-auto text-[10px]"
+                            className="game-btn-secondary py-1 px-3 w-auto text-[10px]"
                             style={{ padding: '6px 12px' }}
                           >
                             Clear
@@ -2124,8 +2123,7 @@ export default function App() {
                     <div className="flex justify-center gap-3 border-t border-white/10 pt-3 mt-3 w-full">
                       <button 
                         onClick={handleExitGame}
-                        className="change-location-btn py-2 px-6 text-xs"
-                        style={{ justifyContent: 'center', width: 'auto' }}
+                        className="game-btn-secondary py-2 px-6 text-xs"
                       >
                         Exit Game
                       </button>
