@@ -26,7 +26,8 @@ import {
   Coffee,
   Tag,
   ArrowLeft,
-  X
+  X,
+  MoreVertical
 } from 'lucide-react';
 import './App.css';
 
@@ -212,6 +213,10 @@ export default function App() {
   const [activePartner, setActivePartner] = useState<{ id: string; alias: string } | null>(null);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [typedMessage, setTypedMessage] = useState('');
+
+  useEffect(() => {
+    setShowChatMenu(false);
+  }, [activeConnectionId]);
   
   // Reveal / Safety State
   const [incomingRequest, setIncomingRequest] = useState<{
@@ -220,6 +225,8 @@ export default function App() {
     fromUserAlias: string;
     message: string;
   } | null>(null);
+
+  const [showChatMenu, setShowChatMenu] = useState(false);
 
   // Custom Safety Options Modal State
   const [activeSafetyOptionsConnId, setActiveSafetyOptionsConnId] = useState<string | null>(null);
@@ -1449,23 +1456,63 @@ export default function App() {
 
                   <div className="flex items-center gap-2">
                     <button 
-                      onClick={() => { setActiveConnectionId(null); setActivePartner(null); }}
+                      onClick={() => { 
+                        setActiveConnectionId(null); 
+                        setActivePartner(null); 
+                        setShowChatMenu(false);
+                      }}
                       className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-semibold text-white hover:bg-white/10 transition-all"
                     >
                       Exit Room
                     </button>
-                    <button
-                      onClick={() => {
-                        if (activeConnectionId && activePartner) {
-                          setActiveSafetyOptionsConnId(activeConnectionId);
-                          setSafetyPartnerAlias(activePartner.alias);
-                        }
-                      }}
-                      className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
-                      title="Safety Options"
-                    >
-                      <ShieldAlert className="w-4 h-4" />
-                    </button>
+                    
+                    <div className="relative flex items-center">
+                      <button
+                        onClick={() => setShowChatMenu(!showChatMenu)}
+                        className="p-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all"
+                        title="Chat Options"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+
+                      {showChatMenu && (
+                        <div className="chat-dropdown-menu">
+                          <button
+                            onClick={() => {
+                              if (activeConnectionId) {
+                                handleSafetyAction('delete', activeConnectionId);
+                              }
+                              setShowChatMenu(false);
+                            }}
+                            className="chat-dropdown-item delete"
+                          >
+                            Delete Chat
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (activeConnectionId) {
+                                handleSafetyAction('block', activeConnectionId);
+                              }
+                              setShowChatMenu(false);
+                            }}
+                            className="chat-dropdown-item block"
+                          >
+                            Block User
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (activeConnectionId) {
+                                handleSafetyAction('report', activeConnectionId);
+                              }
+                              setShowChatMenu(false);
+                            }}
+                            className="chat-dropdown-item report"
+                          >
+                            Report User
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
