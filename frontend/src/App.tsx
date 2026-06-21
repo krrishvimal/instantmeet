@@ -513,7 +513,7 @@ export default function App() {
       return;
     }
 
-    const generatedAvatar = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${alias}`;
+    const generatedAvatar = `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`;
     setAvatarUrl(generatedAvatar);
 
     if (socket) {
@@ -695,7 +695,7 @@ export default function App() {
             className="w-8 h-8 rounded-full border border-white/10 overflow-hidden bg-white/5 flex items-center justify-center cursor-pointer"
             title="Profile Settings"
           >
-            <img src={avatarUrl || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${alias}`} alt="Avatar" className="w-full h-full object-cover" />
+            <img src={avatarUrl || `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`} alt="Avatar" className="w-full h-full object-cover" />
           </div>
         </div>
       </header>
@@ -1126,7 +1126,7 @@ export default function App() {
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-full border border-violet-500/20 overflow-hidden bg-white/5 flex items-center justify-center relative">
                               <img 
-                                src={`https://api.dicebear.com/7.x/bottts/svg?seed=${c.partnerAlias}`} 
+                                src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${c.partnerAlias}`} 
                                 alt="Avatar" 
                                 className="w-full h-full object-cover" 
                               />
@@ -1384,7 +1384,7 @@ export default function App() {
                         if (socket && isRegistered) {
                           const finalAge = typeof age !== 'number' || isNaN(age) ? 18 : Math.max(13, Math.min(120, age));
                           setAge(finalAge);
-                          const generatedAvatar = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${alias}`;
+                          const generatedAvatar = `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`;
                           socket.emit('register-user', {
                             userId,
                             alias,
@@ -1440,7 +1440,7 @@ export default function App() {
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden relative bg-white/5">
                       <img 
-                        src={`https://api.dicebear.com/7.x/bottts/svg?seed=${activePartner?.alias}`} 
+                        src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} 
                         alt="Avatar" 
                         className="w-full h-full object-cover"
                       />
@@ -1587,7 +1587,7 @@ export default function App() {
 
                     <div className="connection-card-avatar border-violet-500/20">
                       <img 
-                        src={`https://api.dicebear.com/7.x/bottts/svg?seed=${c.partnerAlias}`} 
+                        src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${c.partnerAlias}`} 
                         alt="Avatar" 
                       />
                       {c.isOnline && <div className="active-dot"></div>}
@@ -1618,7 +1618,7 @@ export default function App() {
             {/* User Info dropdown slot */}
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setActiveTab('settings'); setActiveConnectionId(null); }} title="Click to view and edit profile settings">
               <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden bg-white/5 relative flex items-center justify-center">
-                <img src={avatarUrl || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${alias}`} alt="Avatar" className="w-full h-full object-cover" />
+                <img src={avatarUrl || `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`} alt="Avatar" className="w-full h-full object-cover" />
               </div>
             </div>
           </div>
