@@ -62,6 +62,39 @@ const users = new Map<string, User>();
 const connections = new Map<string, Connection>();
 const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
 
+// Admin & Moderation states
+const reportsCount = new Map<string, number>();
+const bannedUsers = new Set<string>();
+const adminSockets = new Set<string>();
+const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || 'admin123';
+
+function broadcastAdminStats() {
+  const reportsList: Array<{ userId: string; alias: string; age: number; reports: number }> = [];
+  reportsCount.forEach((count, uId) => {
+    const user = users.get(uId);
+    reportsList.push({
+      userId: uId,
+      alias: user?.alias || 'Unknown',
+      age: user?.age || 0,
+      reports: count,
+    });
+  });
+
+  const bannedList = Array.from(bannedUsers);
+
+  const stats = {
+    activeUsersCount: users.size,
+    activeConnectionsCount: connections.size,
+    reports: reportsList,
+    banned: bannedList,
+  };
+
+  adminSockets.forEach((adminSocketId) => {
+    io.to(adminSocketId).emit('admin-stats-update', stats);
+  });
+}
+
+
 
 
 
@@ -95,6 +128,14 @@ io.on('connection', (socket) => {
       disconnectTimeouts.delete(userId);
       console.log(`User reconnected, cancelled cleanup for: ${data.alias} (${userId})`);
     }
+
+    // Reject banned users immediately
+    if (bannedUsers.has(userId)) {
+      socket.emit('error-msg', 'You have been banned from the platform due to multiple community reports.');
+      socket.disconnect(true);
+      return;
+    }
+
 
     
     if (!isValidCoordinate(data.location)) {
@@ -131,6 +172,7 @@ io.on('connection', (socket) => {
     users.set(userId, newUser);
     socket.emit('registration-success', { userId, alias: newUser.alias });
     console.log(`User registered: ${newUser.alias} (${userId}) at location [${newUser.location.lat}, ${newUser.location.lng}]`);
+    broadcastAdminStats();
   });
 
   // Handle location update heartbeats
@@ -413,11 +455,177 @@ io.on('connection', (socket) => {
     if (partner && partner.socketId && partner.isOnline) {
       io.to(partner.socketId).emit('connection-blocked', { connectionId: conn.id });
     }
+    broadcastAdminStats();
+  });
+
+  // Handle silent connection deletion
+  socket.on('delete-connection', (data: { connectionId: string; userId: string }) => {
+    const conn = connections.get(data.connectionId);
+    if (!conn) return;
+
+    connections.delete(data.connectionId);
+
+    const partnerId = conn.user1Id === data.userId ? conn.user2Id : conn.user1Id;
+    const partner = users.get(partnerId);
+
+    if (partner && partner.socketId && partner.isOnline) {
+      io.to(partner.socketId).emit('connection-blocked', { connectionId: conn.id });
+    }
+    broadcastAdminStats();
+  });
+
+  // Handle reporting a user
+  socket.on('report-user', (data: { connectionId: string; reporterId: string; targetUserId: string }) => {
+    const conn = connections.get(data.connectionId);
+    if (conn) {
+      connections.delete(data.connectionId);
+      
+      const targetUser = users.get(data.targetUserId);
+      if (targetUser && targetUser.socketId && targetUser.isOnline) {
+        io.to(targetUser.socketId).emit('connection-blocked', { connectionId: data.connectionId });
+      }
+    }
+
+    // Increment reports count
+    const count = (reportsCount.get(data.targetUserId) || 0) + 1;
+    reportsCount.set(data.targetUserId, count);
+    console.log(`[REPORT] User ${data.targetUserId} reported. Total flags: ${count}`);
+
+    // If threshold reached (>= 3 reports), ban user immediately
+    if (count >= 3) {
+      bannedUsers.add(data.targetUserId);
+      console.log(`[BAN] Banning user ${data.targetUserId} due to multiple reports.`);
+
+      const targetUser = users.get(data.targetUserId);
+      if (targetUser) {
+        const targetSocketId = targetUser.socketId;
+        users.delete(data.targetUserId);
+
+        // Delete all active connections of the banned user
+        connections.forEach((c, cId) => {
+          if (c.user1Id === data.targetUserId || c.user2Id === data.targetUserId) {
+            const partnerId = c.user1Id === data.targetUserId ? c.user2Id : c.user1Id;
+            const partner = users.get(partnerId);
+            if (partner && partner.socketId && partner.isOnline) {
+              io.to(partner.socketId).emit('connection-blocked', { connectionId: cId });
+            }
+            connections.delete(cId);
+          }
+        });
+
+        if (targetSocketId) {
+          const targetSocket = io.sockets.sockets.get(targetSocketId);
+          if (targetSocket) {
+            targetSocket.emit('error-msg', 'You have been banned from the platform due to multiple community reports.');
+            targetSocket.disconnect(true);
+          }
+        }
+      }
+    }
+
+    broadcastAdminStats();
+  });
+
+  // --- Admin Moderation Console Events ---
+
+  // Admin login request
+  socket.on('admin-login', (data: { passcode: string }) => {
+    if (data.passcode === ADMIN_PASSCODE) {
+      adminSockets.add(socket.id);
+      socket.emit('admin-authorized', { success: true });
+      
+      // Send initial stats immediately
+      const reportsList: Array<{ userId: string; alias: string; age: number; reports: number }> = [];
+      reportsCount.forEach((count, uId) => {
+        const user = users.get(uId);
+        reportsList.push({
+          userId: uId,
+          alias: user?.alias || 'Unknown',
+          age: user?.age || 0,
+          reports: count,
+        });
+      });
+
+      const stats = {
+        activeUsersCount: users.size,
+        activeConnectionsCount: connections.size,
+        reports: reportsList,
+        banned: Array.from(bannedUsers),
+      };
+      socket.emit('admin-stats-update', stats);
+      console.log(`[ADMIN] Socket ${socket.id} logged in as Admin.`);
+    } else {
+      socket.emit('error-msg', 'Invalid admin passcode.');
+    }
+  });
+
+  // Admin manually ban user
+  socket.on('admin-ban-user', (data: { targetUserId: string }) => {
+    if (!adminSockets.has(socket.id)) {
+      socket.emit('error-msg', 'Unauthorized.');
+      return;
+    }
+
+    bannedUsers.add(data.targetUserId);
+    console.log(`[ADMIN ACTION] Admin banned user ${data.targetUserId}`);
+
+    const targetUser = users.get(data.targetUserId);
+    if (targetUser) {
+      const targetSocketId = targetUser.socketId;
+      users.delete(data.targetUserId);
+
+      // Clean up connections
+      connections.forEach((c, cId) => {
+        if (c.user1Id === data.targetUserId || c.user2Id === data.targetUserId) {
+          const partnerId = c.user1Id === data.targetUserId ? c.user2Id : c.user1Id;
+          const partner = users.get(partnerId);
+          if (partner && partner.socketId && partner.isOnline) {
+            io.to(partner.socketId).emit('connection-blocked', { connectionId: cId });
+          }
+          connections.delete(cId);
+        }
+      });
+
+      if (targetSocketId) {
+        const targetSocket = io.sockets.sockets.get(targetSocketId);
+        if (targetSocket) {
+          targetSocket.emit('error-msg', 'You have been banned from the platform by the administrator.');
+          targetSocket.disconnect(true);
+        }
+      }
+    }
+
+    broadcastAdminStats();
+  });
+
+  // Admin dismiss reports
+  socket.on('admin-dismiss-reports', (data: { targetUserId: string }) => {
+    if (!adminSockets.has(socket.id)) {
+      socket.emit('error-msg', 'Unauthorized.');
+      return;
+    }
+
+    reportsCount.delete(data.targetUserId);
+    console.log(`[ADMIN ACTION] Admin dismissed reports for user ${data.targetUserId}`);
+    broadcastAdminStats();
+  });
+
+  // Admin unban user
+  socket.on('admin-unban-user', (data: { targetUserId: string }) => {
+    if (!adminSockets.has(socket.id)) {
+      socket.emit('error-msg', 'Unauthorized.');
+      return;
+    }
+
+    bannedUsers.delete(data.targetUserId);
+    console.log(`[ADMIN ACTION] Admin unbanned user ${data.targetUserId}`);
+    broadcastAdminStats();
   });
 
   // Client disconnected
   socket.on('disconnect', () => {
     console.log(`Socket disconnected: ${socket.id}`);
+    adminSockets.delete(socket.id);
     
     // Find the user who disconnected
     let disconnectedUserId: string | null = null;
@@ -426,6 +634,7 @@ io.on('connection', (socket) => {
         disconnectedUserId = id;
       }
     });
+
 
     if (disconnectedUserId) {
       const uId = disconnectedUserId;
@@ -436,6 +645,7 @@ io.on('connection', (socket) => {
       }
       
       console.log(`User disconnected, scheduled cleanup in 15s for: ${user?.alias} (${uId})`);
+      broadcastAdminStats();
       
       const timeout = setTimeout(() => {
         disconnectTimeouts.delete(uId);
@@ -466,6 +676,7 @@ io.on('connection', (socket) => {
           connections.delete(connId);
         });
         console.log(`Cleanup complete for user ${userAlias}. Deleted ${connectionsToDelete.length} connections.`);
+        broadcastAdminStats();
       }, 15000);
 
       disconnectTimeouts.set(uId, timeout);

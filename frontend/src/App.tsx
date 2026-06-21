@@ -114,7 +114,7 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // App Navigation
-  const [activeTab, setActiveTab] = useState<'home' | 'connections' | 'chats' | 'settings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'connections' | 'chats' | 'settings' | 'admin'>('home');
 
   // User Profile Info
   const [userId, setUserId] = useState<string>('');
@@ -172,6 +172,26 @@ export default function App() {
     fromUserAlias: string;
     message: string;
   } | null>(null);
+
+  // Custom Safety Options Modal State
+  const [activeSafetyOptionsConnId, setActiveSafetyOptionsConnId] = useState<string | null>(null);
+  const [safetyPartnerAlias, setSafetyPartnerAlias] = useState<string>('');
+
+  // Admin Console State
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminPasscode, setAdminPasscode] = useState('');
+  const [adminStats, setAdminStats] = useState<{
+    activeUsersCount: number;
+    activeConnectionsCount: number;
+    reports: Array<{ userId: string; alias: string; age: number; reports: number }>;
+    banned: string[];
+  }>({
+    activeUsersCount: 0,
+    activeConnectionsCount: 0,
+    reports: [],
+    banned: [],
+  });
+
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -383,6 +403,18 @@ export default function App() {
       setIsScanning(false);
     });
 
+    socketInstance.on('admin-authorized', (data: { success: boolean }) => {
+      if (data.success) {
+        setIsAdmin(true);
+        showToast('Admin Console unlocked!', 'success');
+        setActiveTab('admin' as any);
+      }
+    });
+
+    socketInstance.on('admin-stats-update', (stats: any) => {
+      setAdminStats(stats);
+    });
+
     setSocket(socketInstance);
 
     return () => {
@@ -540,17 +572,71 @@ export default function App() {
     });
   };
 
-  // Block connection
-  const handleBlockConnection = () => {
-    if (!socket || !activeConnectionId) return;
-    if (window.confirm('Are you sure you want to block this user and erase this conversation? This cannot be undone.')) {
-      socket.emit('block-user', {
-        connectionId: activeConnectionId,
-        userId,
-      });
-      setActiveConnectionId(null);
-      setActivePartner(null);
+  // Safety actions (Delete, Block, Report)
+  const handleSafetyAction = (action: 'delete' | 'block' | 'report', connectionId: string) => {
+    if (!socket) return;
+    
+    if (action === 'delete') {
+      if (activeConnectionId === connectionId) {
+        setActiveConnectionId(null);
+        setActivePartner(null);
+      }
+      setActiveConnections(prev => prev.filter(c => c.id !== connectionId));
+      socket.emit('delete-connection', { connectionId, userId });
+      showToast('Chat history deleted.', 'info');
+    } 
+    else if (action === 'block') {
+      if (activeConnectionId === connectionId) {
+        setActiveConnectionId(null);
+        setActivePartner(null);
+      }
+      setActiveConnections(prev => prev.filter(c => c.id !== connectionId));
+      socket.emit('block-user', { connectionId, userId });
+      showToast('User has been blocked.', 'warning');
+    } 
+    else if (action === 'report') {
+      if (activeConnectionId === connectionId) {
+        setActiveConnectionId(null);
+        setActivePartner(null);
+      }
+      setActiveConnections(prev => prev.filter(c => c.id !== connectionId));
+      
+      const conn = activeConnections.find(c => c.id === connectionId);
+      const targetUserId = conn?.partnerId;
+      if (targetUserId) {
+        socket.emit('report-user', { connectionId, reporterId: userId, targetUserId });
+      }
+      showToast('User reported. Connection terminated.', 'error');
     }
+    
+    setActiveSafetyOptionsConnId(null);
+  };
+
+  // Admin login passcode submit
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!socket || !adminPasscode.trim()) return;
+    socket.emit('admin-login', { passcode: adminPasscode.trim() });
+  };
+
+  // Admin manually ban a user
+  const handleAdminBan = (targetUserId: string) => {
+    if (!socket) return;
+    if (window.confirm('Are you sure you want to ban this user? They will be immediately disconnected and blocked.')) {
+      socket.emit('admin-ban-user', { targetUserId });
+    }
+  };
+
+  // Admin dismiss user reports
+  const handleAdminDismiss = (targetUserId: string) => {
+    if (!socket) return;
+    socket.emit('admin-dismiss-reports', { targetUserId });
+  };
+
+  // Admin unban a user
+  const handleAdminUnban = (targetUserId: string) => {
+    if (!socket) return;
+    socket.emit('admin-unban-user', { targetUserId });
   };
 
   return (
@@ -603,6 +689,16 @@ export default function App() {
               <Settings className="w-5 h-5" />
               Settings
             </button>
+            {isAdmin && (
+              <button 
+                onClick={() => { setActiveTab('admin' as any); setActiveConnectionId(null); }}
+                className={`nav-btn ${activeTab === 'admin' ? 'active' : ''}`}
+                style={{ borderColor: 'rgba(239, 68, 68, 0.2)', color: '#f87171' }}
+              >
+                <ShieldAlert className="w-5 h-5" />
+                Admin Console
+              </button>
+            )}
           </nav>
 
           {/* Anonymous Info Card */}
@@ -923,12 +1019,21 @@ export default function App() {
                               <p className="text-xs text-violet-400 font-medium">Unlocked • Active connection</p>
                             </div>
                           </div>
-                          <button 
-                            onClick={() => handleRecentCardClick(c)}
-                            className="px-4 py-2 bg-violet-600 text-white rounded-xl text-xs font-semibold hover:bg-violet-500 transition-all shadow-md shadow-violet-600/10"
-                          >
-                            Chat Again
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleRecentCardClick(c)}
+                              className="px-4 py-2 bg-violet-600 text-white rounded-xl text-xs font-semibold hover:bg-violet-500 transition-all shadow-md shadow-violet-600/10"
+                            >
+                              Chat Again
+                            </button>
+                            <button 
+                              onClick={() => { setActiveSafetyOptionsConnId(c.id); setSafetyPartnerAlias(c.partnerAlias); }}
+                              className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all flex items-center justify-center"
+                              title="Safety Options"
+                            >
+                              <ShieldAlert className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}
@@ -977,15 +1082,105 @@ export default function App() {
                               </p>
                             </div>
                           </div>
-                          <button 
-                            onClick={() => handleRecentCardClick(c)}
-                            className="px-4 py-2 bg-violet-600 text-white rounded-xl text-xs font-semibold hover:bg-violet-500 transition-all shadow-md shadow-violet-600/10"
-                          >
-                            Resume Chat
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleRecentCardClick(c)}
+                              className="px-4 py-2 bg-violet-600 text-white rounded-xl text-xs font-semibold hover:bg-violet-500 transition-all shadow-md shadow-violet-600/10"
+                            >
+                              Resume Chat
+                            </button>
+                            <button 
+                              onClick={() => { setActiveSafetyOptionsConnId(c.id); setSafetyPartnerAlias(c.partnerAlias); }}
+                              className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all flex items-center justify-center"
+                              title="Safety Options"
+                            >
+                              <ShieldAlert className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}
+                  </div>
+                </div>
+              ) : activeTab === 'admin' ? (
+                /* Admin Console Centerpiece */
+                <div className="w-full flex flex-col p-4 md:p-6 text-left">
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h3 className="text-xl font-bold font-space text-white">Admin Moderation Console</h3>
+                      <p className="text-xs text-text-secondary mt-1">Monitor server activity and review safety flag reports.</p>
+                    </div>
+                  </div>
+
+                  {/* Admin Stats Metrics Row */}
+                  <div className="grid grid-cols-2 gap-4 mb-6" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%' }}>
+                    <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted">Active Bubbles</span>
+                      <p className="text-2xl font-extrabold text-violet-400 mt-1">{adminStats.activeUsersCount}</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted">Secure Chats</span>
+                      <p className="text-2xl font-extrabold text-cyan-400 mt-1">{adminStats.activeConnectionsCount}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-6">
+                    {/* Reported Users Table */}
+                    <div className="flex flex-col gap-3">
+                      <h4 className="text-xs uppercase font-bold tracking-wider text-text-muted">Active Community Reports</h4>
+                      <div className="flex flex-col gap-3 overflow-y-auto max-h-[220px] pr-2">
+                        {adminStats.reports.length === 0 ? (
+                          <div className="p-5 text-center bg-white/5 border border-white/10 rounded-2xl text-xs text-emerald-400 font-medium">
+                            ✅ No user flags reported. Community is safe!
+                          </div>
+                        ) : (
+                          adminStats.reports.map(rep => (
+                            <div key={rep.userId} className="p-3.5 rounded-xl bg-red-500/5 border border-red-500/10 flex items-center justify-between text-xs">
+                              <div>
+                                <h5 className="font-bold text-white">@{rep.alias} <span className="text-[10px] text-text-muted font-mono">({rep.userId})</span></h5>
+                                <p className="text-[10px] text-red-400 font-bold mt-1">⚠️ {rep.reports} Flag(s) • Age: {rep.age}</p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleAdminDismiss(rep.userId)}
+                                  className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 font-semibold text-[10px] text-white"
+                                >
+                                  Dismiss
+                                </button>
+                                <button
+                                  onClick={() => handleAdminBan(rep.userId)}
+                                  className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 font-bold text-white text-[10px]"
+                                >
+                                  Ban User
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Banned Users List */}
+                    <div className="flex flex-col gap-3">
+                      <h4 className="text-xs uppercase font-bold tracking-wider text-text-muted">Banned Session List ({adminStats.banned.length})</h4>
+                      <div className="flex flex-wrap gap-2 overflow-y-auto max-h-[100px] pr-2">
+                        {adminStats.banned.length === 0 ? (
+                          <p className="text-[10px] text-text-muted italic">No banned users in active memory.</p>
+                        ) : (
+                          adminStats.banned.map(banId => (
+                            <div key={banId} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2 text-[10px] font-mono text-text-secondary">
+                              <span>{banId}</span>
+                              <button
+                                onClick={() => handleAdminUnban(banId)}
+                                className="text-violet-400 hover:underline font-bold"
+                              >
+                                Unban
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1104,6 +1299,31 @@ export default function App() {
                     >
                       Save Preferences
                     </button>
+
+                    {!isAdmin && (
+                      <>
+                        <hr className="border-white/5" />
+                        <form onSubmit={handleAdminLogin} className="flex flex-col gap-3">
+                          <span className="text-xs uppercase font-bold tracking-wider text-text-muted">Admin Portal</span>
+                          <div className="flex gap-2">
+                            <input 
+                              type="password" 
+                              value={adminPasscode}
+                              onChange={(e) => setAdminPasscode(e.target.value)}
+                              placeholder="Enter admin passcode"
+                              className="bar-input flex-1"
+                              style={{ background: 'rgba(239, 68, 68, 0.03)', border: '1px solid rgba(239, 68, 68, 0.1)', borderRadius: '12px', padding: '10px 14px', color: '#fff', fontSize: '0.85rem' }}
+                            />
+                            <button 
+                              type="submit"
+                              className="px-4 py-2 bg-red-950/20 border border-red-900/30 text-red-400 rounded-xl text-xs font-semibold hover:bg-red-900/20 transition-all"
+                            >
+                              Unlock Console
+                            </button>
+                          </div>
+                        </form>
+                      </>
+                    )}
                   </div>
                 </div>
               )
@@ -1144,9 +1364,14 @@ export default function App() {
                       Exit Room
                     </button>
                     <button
-                      onClick={handleBlockConnection}
+                      onClick={() => {
+                        if (activeConnectionId && activePartner) {
+                          setActiveSafetyOptionsConnId(activeConnectionId);
+                          setSafetyPartnerAlias(activePartner.alias);
+                        }
+                      }}
                       className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
-                      title="Block & Delete chat"
+                      title="Safety Options"
                     >
                       <ShieldAlert className="w-4 h-4" />
                     </button>
@@ -1241,8 +1466,21 @@ export default function App() {
                   <div 
                     key={c.id}
                     onClick={() => handleRecentCardClick(c)}
-                    className="glass-panel glass-card connection-card"
+                    className="glass-panel glass-card connection-card relative group cursor-pointer"
                   >
+                    {/* Hover-revealed safety button */}
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveSafetyOptionsConnId(c.id);
+                        setSafetyPartnerAlias(c.partnerAlias);
+                      }}
+                      className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all z-10"
+                      title="Safety Options"
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                    </button>
+
                     <div className="connection-card-avatar border-violet-500/20">
                       <img 
                         src={c.isRevealed && c.avatarUrl ? c.avatarUrl : `https://api.dicebear.com/7.x/bottts/svg?seed=${c.partnerAlias}`} 
@@ -1442,6 +1680,61 @@ export default function App() {
               className="modal-close-btn"
             >
               Got it, thanks!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Safety Options Modal */}
+      {activeSafetyOptionsConnId && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-card border-red-500/20" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <div className="modal-header-icon" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div className="modal-header-info">
+                <h4>Safety Options</h4>
+                <p>Manage connection with @{safetyPartnerAlias}</p>
+              </div>
+            </div>
+
+            <div className="modal-divider" />
+
+            <div className="flex flex-col gap-3 mb-6" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px', width: '100%' }}>
+              <button
+                onClick={() => handleSafetyAction('delete', activeSafetyOptionsConnId)}
+                className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 hover:border-violet-500/20 text-left flex flex-col gap-1 text-white"
+                style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '14px', borderRadius: '14px', width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <span className="text-xs font-bold">🗑️ Delete Conversation</span>
+                <span className="text-[10px] text-text-secondary font-normal" style={{ textTransform: 'none' }}>Erase chat history and remove this thread from your active list. Partner is not blocked.</span>
+              </button>
+
+              <button
+                onClick={() => handleSafetyAction('block', activeSafetyOptionsConnId)}
+                className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/20 text-left flex flex-col gap-1 text-white"
+                style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '14px', borderRadius: '14px', width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <span className="text-xs font-bold text-red-400">🚫 Block User</span>
+                <span className="text-[10px] text-text-secondary font-normal" style={{ textTransform: 'none' }}>Sever connection instantly, erase history, and prevent matching with them again.</span>
+              </button>
+
+              <button
+                onClick={() => handleSafetyAction('report', activeSafetyOptionsConnId)}
+                className="w-full p-3.5 rounded-xl bg-red-500/5 border border-red-500/10 hover:border-red-500/30 text-left flex flex-col gap-1 text-white"
+                style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '14px', borderRadius: '14px', width: '100%', background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.1)' }}
+              >
+                <span className="text-xs font-bold text-red-500">⚠️ Report User</span>
+                <span className="text-[10px] text-text-secondary font-normal" style={{ textTransform: 'none' }}>Report inappropriate behavior. Blocks them immediately and flags them for community safety.</span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setActiveSafetyOptionsConnId(null)}
+              className="modal-close-btn"
+            >
+              Cancel
             </button>
           </div>
         </div>
