@@ -27,7 +27,8 @@ import {
   Tag,
   ArrowLeft,
   X,
-  MoreVertical
+  MoreVertical,
+  Globe
 } from 'lucide-react';
 import './App.css';
 
@@ -103,6 +104,7 @@ interface SearchResult {
   gender: string;
   distanceKm: number;
   isOnline: boolean;
+  city?: string;
 }
 
 interface Message {
@@ -210,6 +212,8 @@ export default function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [nearbyUsers, setNearbyUsers] = useState<SearchResult[]>([]);
   const [selectedNode, setSelectedNode] = useState<SearchResult | null>(null);
+  const [isGlobalSearchActive, setIsGlobalSearchActive] = useState(false);
+  const [showGlobalFallbackPrompt, setShowGlobalFallbackPrompt] = useState(false);
 
   // Chat / Connection State
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
@@ -440,9 +444,18 @@ export default function App() {
       setLocationSynced(true);
     });
 
-    socketInstance.on('nearby-results', (results: SearchResult[]) => {
-      setNearbyUsers(results);
+    socketInstance.on('nearby-results', (data: SearchResult[] | { results: SearchResult[]; isGlobal?: boolean }) => {
+      const resultsList = Array.isArray(data) ? data : data.results;
+      const wasGlobal = Array.isArray(data) ? false : !!data.isGlobal;
+      
+      setNearbyUsers(resultsList);
       setIsScanning(false);
+      
+      if (resultsList.length === 0 && !wasGlobal) {
+        setShowGlobalFallbackPrompt(true);
+      } else {
+        setShowGlobalFallbackPrompt(false);
+      }
     });
 
     socketInstance.on('admin-authorized', (data: { success: boolean }) => {
@@ -557,8 +570,20 @@ export default function App() {
   const handleSearch = () => {
     if (!socket || !userId) return;
     setIsScanning(true);
+    setShowGlobalFallbackPrompt(false);
+    setIsGlobalSearchActive(false);
     setSelectedNode(null);
     socket.emit('search-nearby', { userId, radius: 50 });
+  };
+
+  // Trigger global fallback search
+  const handleGlobalSearch = () => {
+    if (!socket || !userId) return;
+    setIsScanning(true);
+    setShowGlobalFallbackPrompt(false);
+    setIsGlobalSearchActive(true);
+    setSelectedNode(null);
+    socket.emit('search-nearby', { userId, radius: 50, global: true });
   };
 
   // Send wave / connection request
@@ -1098,7 +1123,7 @@ export default function App() {
                         {isScanning ? <Loader2 className="w-8 h-8 animate-spin" /> : nearbyUsers.length}
                       </span>
                       <span className="text-[11px] uppercase tracking-wider text-violet-300 font-semibold mt-1">people online</span>
-                      <span className="text-[9px] text-text-secondary mt-0.5">in {selectedCity}</span>
+                      <span className="text-[9px] text-text-secondary mt-0.5">{isGlobalSearchActive ? 'globally' : `in ${selectedCity}`}</span>
                     </div>
 
                     {/* Real-time matched users positioned around the orb ring */}
@@ -1128,7 +1153,7 @@ export default function App() {
                       <div className="glass-panel p-4 flex flex-col items-center text-center max-w-xs border-cyan-500/20">
                         <h4 className="font-bold text-white">@{selectedNode.alias}</h4>
                         <p className="text-xs text-cyan-400 font-semibold mt-0.5">
-                          Online in {selectedCity}{selectedNode.age > 0 ? ` • ${selectedNode.age}y/o` : ''}{selectedNode.gender ? ` • ${selectedNode.gender.charAt(0).toUpperCase() + selectedNode.gender.slice(1)}` : ''}
+                          Online in {selectedNode.city || selectedCity}{selectedNode.age > 0 ? ` • ${selectedNode.age}y/o` : ''}{selectedNode.gender ? ` • ${selectedNode.gender.charAt(0).toUpperCase() + selectedNode.gender.slice(1)}` : ''}
                         </p>
                         <div className="flex flex-wrap gap-1 justify-center mt-2">
                           {selectedNode.interests.length > 0 ? (
@@ -1150,6 +1175,30 @@ export default function App() {
                         >
                           Connect Anonymous Chat
                         </button>
+                      </div>
+                    ) : showGlobalFallbackPrompt ? (
+                      <div className="glass-panel p-4 flex flex-col items-center text-center max-w-xs border-violet-500/20 animate-fadeIn" style={{ animationDuration: '0.3s' }}>
+                        <Globe className="w-6 h-6 text-violet-400 animate-pulse mb-2" />
+                        <h4 className="font-bold text-white text-sm">No matches in {selectedCity}</h4>
+                        <p className="text-[11px] text-text-secondary mt-1">
+                          No one is online in your city right now. Would you like to expand your search and match with someone globally?
+                        </p>
+                        <div className="flex gap-2 mt-4 w-full">
+                          <button 
+                            onClick={handleGlobalSearch}
+                            className="btn-primary py-2 px-3 flex-1 text-xs"
+                            style={{ minWidth: 'unset', padding: '10px' }}
+                          >
+                            Search Globally
+                          </button>
+                          <button 
+                            onClick={() => setShowGlobalFallbackPrompt(false)}
+                            className="change-location-btn py-2 px-3 flex-1 text-xs"
+                            style={{ justifyContent: 'center', padding: '10px' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <button

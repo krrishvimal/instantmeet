@@ -49,4 +49,5 @@ export interface SearchResult {
   gender: string;
   distanceKm: number;
   isOnline: boolean;
+  city?: string;
 }

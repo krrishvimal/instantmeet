@@ -197,7 +197,7 @@ io.on('connection', (socket) => {
   });
 
   // Search for nearby users (dynamic radius from client, max 50 km)
-  socket.on('search-nearby', (data: { userId: string; radius?: number }) => {
+  socket.on('search-nearby', (data: { userId: string; radius?: number; global?: boolean }) => {
     if (rateLimitCheck(socket.id, 'search-nearby', 20)) { socket.emit('error-msg', 'Rate limit exceeded. Please slow down.'); return; }
 
     const currentUser = users.get(data.userId);
@@ -206,8 +206,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Use client-specified radius, clamped between 1-50 km, default 10
-    const searchRadius = Math.max(1, Math.min(50, data.radius || 10));
     const searchResults: SearchResult[] = [];
 
     users.forEach((otherUser) => {
@@ -224,8 +222,8 @@ io.on('connection', (socket) => {
       if (currentUser.genderPreference !== 'any' && currentUser.genderPreference !== otherUser.gender) return;
       if (otherUser.genderPreference !== 'any' && otherUser.genderPreference !== currentUser.gender) return;
 
-      // City filter check (strict matching by city name)
-      if (currentUser.city !== otherUser.city) return;
+      // City filter check (strict matching by city name) - skip if global search is requested
+      if (!data.global && currentUser.city !== otherUser.city) return;
 
       // If target user has stealth mode ON, hide interests & age
       searchResults.push({
@@ -236,11 +234,12 @@ io.on('connection', (socket) => {
         gender: otherUser.gender,
         distanceKm: 0,
         isOnline: otherUser.isOnline,
+        city: otherUser.city,
       });
     });
 
-    // Send back matching local users list
-    socket.emit('nearby-results', searchResults);
+    // Send back matching users list
+    socket.emit('nearby-results', { results: searchResults, isGlobal: !!data.global });
   });
 
   // Send wave / connection request
