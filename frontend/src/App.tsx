@@ -18,7 +18,6 @@ import {
   ChevronRight,
   ShieldCheck,
   Ghost,
-  Target,
   Heart,
   Calendar,
   Camera,
@@ -1153,13 +1152,10 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => syncLocation()}
-            className={`mobile-gps-pill ${locationSynced ? 'synced' : 'syncing'}`}
-          >
+          <div className={`mobile-gps-pill ${locationSynced ? 'synced' : 'syncing'}`}>
             <MapPin className="w-3.5 h-3.5" />
             <span>{selectedCity}</span>
-          </button>
+          </div>
 
           <div className="relative flex items-center">
             <button 
@@ -1304,13 +1300,6 @@ export default function App() {
               </div>
             </div>
             
-            <button 
-              onClick={() => syncLocation()}
-              className="change-location-btn"
-            >
-              <span>Recenter City</span>
-              <Target className="w-4 h-4 text-text-secondary" />
-            </button>
           </div>
 
           {/* Footer Copyright */}
