@@ -468,8 +468,8 @@ input[type="text"]:focus, input[type="number"]:focus, .bar-input:focus {
 /* Saturn Diagonal ring */
 .planet-ring {
   position: absolute;
-  width: 260px;
-  height: 74px;
+  width: 290px;
+  height: 82px;
   border-radius: 50%;
   border: 3px solid rgba(139, 92, 246, 0.35);
   transform: rotate(-18deg);
@@ -481,8 +481,8 @@ input[type="text"]:focus, input[type="number"]:focus, .bar-input:focus {
 /* Sweep indicator when scanning */
 .orb-sweep-beam {
   position: absolute;
-  width: 240px;
-  height: 240px;
+  width: 270px;
+  height: 270px;
   border-radius: 50%;
   background: conic-gradient(from 0deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0) 40%);
   z-index: 3;
@@ -910,13 +910,13 @@ input[type="text"]:focus, input[type="number"]:focus, .bar-input:focus {
   }
 
   .planet-ring {
-    width: 220px !important;
-    height: 64px !important;
+    width: 230px !important;
+    height: 68px !important;
   }
 
   .orb-sweep-beam {
-    width: 190px !important;
-    height: 190px !important;
+    width: 210px !important;
+    height: 210px !important;
   }
 
   /* Chat view panel container on mobile */
