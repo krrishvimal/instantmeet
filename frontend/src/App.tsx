@@ -127,9 +127,9 @@ export default function App() {
 
   // User Profile Info
   const [userId, setUserId] = useState<string>('');
-  const [alias, setAlias] = useState('NightOwl');
-  const [realName, setRealName] = useState('Krrish Vimal');
-  const [age, setAge] = useState<number>(22);
+  const [alias, setAlias] = useState('');
+  const [realName, setRealName] = useState('');
+  const [age, setAge] = useState<number | ''>('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(['Photography', 'Music', 'Coffee']);
   const [isRegistered, setIsRegistered] = useState(false);
@@ -478,6 +478,10 @@ export default function App() {
     if (e) e.preventDefault();
     if (!alias.trim()) {
       showToast('Please enter your Display Name first.', 'warning');
+      return;
+    }
+    if (typeof age !== 'number' || isNaN(age)) {
+      showToast('Please enter a valid Age.', 'warning');
       return;
     }
     const resolvedRealName = realName.trim() || alias.trim();
@@ -866,6 +870,7 @@ export default function App() {
                     <input 
                       type="number" 
                       value={age}
+                      placeholder="22"
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val === '') {
@@ -1335,6 +1340,7 @@ export default function App() {
                           <input 
                             type="number" 
                             value={age}
+                            placeholder="22"
                             onChange={(e) => {
                               const val = e.target.value;
                               if (val === '') {
@@ -1405,6 +1411,14 @@ export default function App() {
 
                     <button 
                       onClick={() => {
+                        if (!alias.trim()) {
+                          showToast('Display Name cannot be empty.', 'warning');
+                          return;
+                        }
+                        if (typeof age !== 'number' || isNaN(age)) {
+                          showToast('Please enter a valid Age.', 'warning');
+                          return;
+                        }
                         if (socket && isRegistered) {
                           const finalAge = typeof age !== 'number' || isNaN(age) ? 18 : Math.max(13, Math.min(120, age));
                           setAge(finalAge);
