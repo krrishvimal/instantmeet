@@ -1,0 +1,48 @@
+export interface Location {
+  lat: number;
+  lng: number;
+}
+
+export interface User {
+  id: string;
+  alias: string;
+  realName: string;
+  avatarUrl: string;
+  interests: string[];
+  age: number;
+  location: Location;
+  lastActive: number;
+  socketId?: string;
+  isOnline: boolean;
+  isVisible: boolean;
+  stealthMode: boolean;
+}
+
+export interface Connection {
+  id: string;
+  user1Id: string;
+  user2Id: string;
+  status: 'anonymous' | 'revealed' | 'blocked';
+  user1Reveal: boolean;
+  user2Reveal: boolean;
+  messages: Message[];
+  createdAt: number;
+}
+
+export interface Message {
+  id: string;
+  connectionId: string;
+  senderId: string;
+  senderAlias: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface SearchResult {
+  userId: string;
+  alias: string;
+  interests: string[];
+  age: number;
+  distanceKm: number;
+  isOnline: boolean;
+}

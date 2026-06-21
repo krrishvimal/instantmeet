@@ -1,0 +1,18 @@
+# Node Modules and Build Output
+**/node_modules/
+**/dist/
+
+# Local configuration and secret keys
+**/.env
+**/.env.local
+**/.env.production
+**/.env.development
+**/.env.*.local
+
+# Logs
+**/*.log
+**/npm-debug.log*
+
+# OS metadata
+.DS_Store
+Thumbs.db
