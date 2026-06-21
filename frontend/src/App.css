@@ -1796,3 +1796,61 @@ input[type="range"]::-webkit-slider-thumb:hover {
   }
 }
 
+/* Premium Glassmorphic Alert Subscribe Button */
+.btn-alert-subscribe {
+  background: rgba(168, 85, 247, 0.08) !important;
+  border: 1.5px dashed rgba(168, 85, 247, 0.3) !important;
+  color: #c084fc !important;
+  font-weight: 600 !important;
+  border-radius: 9999px !important; /* Fully rounded capsule pill */
+  padding: 12px 28px !important;
+  font-size: 0.9rem !important;
+  font-family: 'Outfit', sans-serif !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  width: 100% !important;
+  max-width: 320px !important;
+  animation: pulse-border 2s infinite ease-in-out !important;
+}
+
+.btn-alert-subscribe:hover {
+  background: rgba(168, 85, 247, 0.15) !important;
+  border-color: rgba(168, 85, 247, 0.5) !important;
+  transform: translateY(-2px) !important;
+  color: #d8b4fe !important;
+}
+
+.btn-alert-subscribe:active {
+  transform: translateY(0) !important;
+}
+
+.btn-alert-subscribe.active {
+  background: rgba(16, 185, 129, 0.08) !important;
+  border: 1.5px solid rgba(16, 185, 129, 0.3) !important;
+  color: #34d399 !important;
+  cursor: default !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+@keyframes pulse-border {
+  0% {
+    border-color: rgba(168, 85, 247, 0.3);
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.1);
+  }
+  70% {
+    border-color: rgba(168, 85, 247, 0.6);
+    box-shadow: 0 0 0 10px rgba(168, 85, 247, 0);
+  }
+  100% {
+    border-color: rgba(168, 85, 247, 0.3);
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0);
+  }
+}
+
+

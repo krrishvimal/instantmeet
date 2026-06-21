@@ -1681,11 +1681,7 @@ export default function App() {
                         
                         <button
                           onClick={handleSubscribeCityAlerts}
-                          className={`mt-3 w-full py-2 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border ${
-                            isSubscribedToCityAlerts 
-                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 cursor-default' 
-                              : 'bg-violet-500/10 border-violet-500/30 text-violet-300 hover:bg-violet-500/20 hover:scale-105 active:scale-95 animate-pulse'
-                          }`}
+                          className={`btn-alert-subscribe mt-3 ${isSubscribedToCityAlerts ? 'active' : ''}`}
                           disabled={isSubscribedToCityAlerts}
                         >
                           {isSubscribedToCityAlerts ? '🔔 Alerts Active' : `Alert me when ${selectedCity} goes active 🔔`}
@@ -1731,11 +1727,7 @@ export default function App() {
                         {!isScanning && isRegistered && nearbyUsers.length === 0 && (
                           <button
                             onClick={handleSubscribeCityAlerts}
-                            className={`py-2 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border max-w-xs w-full ${
-                              isSubscribedToCityAlerts 
-                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 cursor-default' 
-                                : 'bg-violet-500/10 border-violet-500/30 text-violet-300 hover:bg-violet-500/20 hover:scale-105 active:scale-95 animate-pulse'
-                            }`}
+                            className={`btn-alert-subscribe mt-2 ${isSubscribedToCityAlerts ? 'active' : ''}`}
                             disabled={isSubscribedToCityAlerts}
                           >
                             {isSubscribedToCityAlerts ? '🔔 Alerts Active' : `Alert me when ${selectedCity} goes active 🔔`}
