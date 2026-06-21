@@ -494,13 +494,15 @@ export default function App() {
     setAvatarUrl(generatedAvatar);
 
     if (socket) {
+      const finalAge = typeof age !== 'number' || isNaN(age) ? 18 : Math.max(13, Math.min(120, age));
+      setAge(finalAge);
       socket.emit('register-user', {
         userId: userId || undefined,
         alias,
         realName: resolvedRealName,
         avatarUrl: generatedAvatar,
         interests: selectedTags,
-        age,
+        age: finalAge,
         location: currentLocation,
         isVisible: visibleOnRadar,
         stealthMode,
@@ -864,7 +866,24 @@ export default function App() {
                     <input 
                       type="number" 
                       value={age}
-                      onChange={(e) => { const v = parseInt(e.target.value); setAge(Math.max(13, Math.min(120, v || 18))); }}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          setAge('' as any);
+                        } else {
+                          const num = parseInt(val);
+                          if (!isNaN(num)) {
+                            setAge(num);
+                          }
+                        }
+                      }}
+                      onBlur={() => {
+                        if (typeof age !== 'number' || isNaN(age)) {
+                          setAge(18);
+                        } else {
+                          setAge(Math.max(13, Math.min(120, age)));
+                        }
+                      }}
                       className="bar-input age-input"
                     />
                   </div>
@@ -1316,7 +1335,24 @@ export default function App() {
                           <input 
                             type="number" 
                             value={age}
-                            onChange={(e) => { const v = parseInt(e.target.value); setAge(Math.max(13, Math.min(120, v || 18))); }}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === '') {
+                                setAge('' as any);
+                              } else {
+                                const num = parseInt(val);
+                                if (!isNaN(num)) {
+                                  setAge(num);
+                                }
+                              }
+                            }}
+                            onBlur={() => {
+                              if (typeof age !== 'number' || isNaN(age)) {
+                                  setAge(18);
+                              } else {
+                                  setAge(Math.max(13, Math.min(120, age)));
+                              }
+                            }}
                             className="bar-input w-full"
                             style={{ background: 'rgba(30, 20, 74, 0.4)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '10px 14px', color: '#fff', fontSize: '0.9rem' }}
                           />
@@ -1370,6 +1406,8 @@ export default function App() {
                     <button 
                       onClick={() => {
                         if (socket && isRegistered) {
+                          const finalAge = typeof age !== 'number' || isNaN(age) ? 18 : Math.max(13, Math.min(120, age));
+                          setAge(finalAge);
                           const generatedAvatar = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${alias}`;
                           socket.emit('register-user', {
                             userId,
@@ -1377,7 +1415,7 @@ export default function App() {
                             realName: realName.trim() || alias.trim(),
                             avatarUrl: generatedAvatar,
                             interests: selectedTags,
-                            age,
+                            age: finalAge,
                             location: currentLocation,
                             isVisible: visibleOnRadar,
                             stealthMode,
