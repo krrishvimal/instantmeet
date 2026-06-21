@@ -1563,12 +1563,28 @@ export default function App() {
                     </div>
 
                     {/* Real-time matched users positioned around the orb ring */}
-                    {!isScanning && nearbyUsers.map((nu, i) => {
-                      const angle = (i * 360) / Math.max(nearbyUsers.length, 1) - 30;
+                    {!isScanning && nearbyUsers.slice(0, 12).map((nu, i) => {
+                      const angle = (i * 360) / Math.min(nearbyUsers.length, 12) - 30;
                       const radian = (angle * Math.PI) / 180;
-                      const radius = 125; // radius offset
-                      const x = Math.cos(radian) * radius;
-                      const y = Math.sin(radian) * radius;
+                      
+                      // Alternate between 3 orbits (0: inner, 1: middle, 2: outer)
+                      const orbitIndex = i % 3;
+                      
+                      // Calculate radius dynamically based on viewport size
+                      const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+                      
+                      let baseRadius = 160; // middle orbit on desktop
+                      if (orbitIndex === 0) baseRadius = 130; // inner
+                      if (orbitIndex === 2) baseRadius = 190; // outer
+                      
+                      if (isMobile) {
+                        baseRadius = 110; // middle on mobile
+                        if (orbitIndex === 0) baseRadius = 90; // inner
+                        if (orbitIndex === 2) baseRadius = 130; // outer
+                      }
+
+                      const x = Math.cos(radian) * baseRadius;
+                      const y = Math.sin(radian) * baseRadius;
 
                       return (
                         <button
