@@ -281,6 +281,7 @@ export default function App() {
     age,
     gender,
     genderPreference,
+    city: selectedCity,
     location: currentLocation,
     isVisible: visibleOnRadar,
     stealthMode,
@@ -296,11 +297,12 @@ export default function App() {
       age,
       gender,
       genderPreference,
+      city: selectedCity,
       location: currentLocation,
       isVisible: visibleOnRadar,
       stealthMode,
     };
-  }, [userId, alias, realName, avatarUrl, selectedTags, age, gender, genderPreference, currentLocation, visibleOnRadar, stealthMode]);
+  }, [userId, alias, realName, avatarUrl, selectedTags, age, gender, genderPreference, selectedCity, currentLocation, visibleOnRadar, stealthMode]);
 
   // Re-register automatically on reconnect (if user was already registered)
   useEffect(() => {
@@ -535,6 +537,7 @@ export default function App() {
         age: finalAge,
         gender,
         genderPreference,
+        city: selectedCity,
         location: currentLocation,
         isVisible: visibleOnRadar,
         stealthMode,
@@ -1499,6 +1502,7 @@ export default function App() {
                             age: finalAge,
                             gender,
                             genderPreference,
+                            city: selectedCity,
                             location: currentLocation,
                             isVisible: visibleOnRadar,
                             stealthMode,

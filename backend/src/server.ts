@@ -116,6 +116,7 @@ io.on('connection', (socket) => {
     age: number;
     gender?: string;
     genderPreference?: string;
+    city: string;
     location: Location;
     isVisible?: boolean;
     stealthMode?: boolean;
@@ -165,6 +166,7 @@ io.on('connection', (socket) => {
       age,
       gender: data.gender || 'male',
       genderPreference: data.genderPreference || 'any',
+      city: data.city || 'Mumbai',
       location: data.location,
       lastActive: Date.now(),
       socketId: socket.id,
@@ -222,21 +224,19 @@ io.on('connection', (socket) => {
       if (currentUser.genderPreference !== 'any' && currentUser.genderPreference !== otherUser.gender) return;
       if (otherUser.genderPreference !== 'any' && otherUser.genderPreference !== currentUser.gender) return;
 
-      const distance = calculateDistance(currentUser.location, otherUser.location);
-      
-      // Dynamic radius geofence check
-      if (distance <= searchRadius) {
-        // If target user has stealth mode ON, hide interests & age
-        searchResults.push({
-          userId: otherUser.id,
-          alias: otherUser.alias,
-          interests: otherUser.stealthMode ? [] : otherUser.interests,
-          age: otherUser.stealthMode ? 0 : otherUser.age,
-          gender: otherUser.gender,
-          distanceKm: obfuscateDistance(distance),
-          isOnline: otherUser.isOnline,
-        });
-      }
+      // City filter check (strict matching by city name)
+      if (currentUser.city !== otherUser.city) return;
+
+      // If target user has stealth mode ON, hide interests & age
+      searchResults.push({
+        userId: otherUser.id,
+        alias: otherUser.alias,
+        interests: otherUser.stealthMode ? [] : otherUser.interests,
+        age: otherUser.stealthMode ? 0 : otherUser.age,
+        gender: otherUser.gender,
+        distanceKm: 0,
+        isOnline: otherUser.isOnline,
+      });
     });
 
     // Send back matching local users list

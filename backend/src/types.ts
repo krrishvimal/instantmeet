@@ -12,6 +12,7 @@ export interface User {
   age: number;
   gender: string;
   genderPreference: string;
+  city: string;
   location: Location;
   lastActive: number;
   socketId?: string;
