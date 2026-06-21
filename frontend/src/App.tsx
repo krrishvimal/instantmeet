@@ -1573,14 +1573,14 @@ export default function App() {
                       // Calculate radius dynamically based on viewport size
                       const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
                       
-                      let baseRadius = 160; // middle orbit on desktop
-                      if (orbitIndex === 0) baseRadius = 130; // inner
-                      if (orbitIndex === 2) baseRadius = 190; // outer
+                      let baseRadius = 115; // middle orbit on desktop
+                      if (orbitIndex === 0) baseRadius = 95; // inner
+                      if (orbitIndex === 2) baseRadius = 135; // outer
                       
                       if (isMobile) {
-                        baseRadius = 110; // middle on mobile
-                        if (orbitIndex === 0) baseRadius = 90; // inner
-                        if (orbitIndex === 2) baseRadius = 130; // outer
+                        baseRadius = 90; // middle on mobile
+                        if (orbitIndex === 0) baseRadius = 75; // inner
+                        if (orbitIndex === 2) baseRadius = 105; // outer
                       }
 
                       const x = Math.cos(radian) * baseRadius;
