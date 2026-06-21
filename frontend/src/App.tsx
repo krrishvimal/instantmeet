@@ -10,8 +10,6 @@ import {
   MessageSquare, 
   Compass, 
   Loader2, 
-  Lock, 
-  CheckCircle2,
   Users,
   Home,
   MessageCircle,
@@ -176,7 +174,7 @@ export default function App() {
   // User Profile Info
   const [userId, setUserId] = useState<string>('');
   const [alias, setAlias] = useState('');
-  const [realName, setRealName] = useState('');
+  const [realName] = useState('');
   const [age, setAge] = useState<number | ''>('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(['Photography', 'Music', 'Coffee']);
@@ -216,13 +214,6 @@ export default function App() {
   const [typedMessage, setTypedMessage] = useState('');
   
   // Reveal / Safety State
-  const [revealRequested, setRevealRequested] = useState(false);
-  const [partnerRevealPending, setPartnerRevealPending] = useState(false);
-  const [revealedProfiles, setRevealedProfiles] = useState<{
-    user1: { id: string; realName: string; avatarUrl: string };
-    user2: { id: string; realName: string; avatarUrl: string };
-  } | null>(null);
-  const [showParticleEffect, setShowParticleEffect] = useState(false);
   const [incomingRequest, setIncomingRequest] = useState<{
     connectionId: string;
     fromUserId: string;
@@ -361,9 +352,6 @@ export default function App() {
       setActiveConnectionId(data.connectionId);
       setActivePartner({ id: data.partnerId, alias: data.partnerAlias });
       setChatMessages([]);
-      setRevealRequested(false);
-      setPartnerRevealPending(false);
-      setRevealedProfiles(null);
       setIncomingRequest(null);
 
       // Add to active connections
@@ -387,19 +375,13 @@ export default function App() {
       setChatMessages((prev) => [...prev, msg]);
     });
 
-    socketInstance.on('partner-requested-reveal', () => {
-      setPartnerRevealPending(true);
-    });
+    socketInstance.on('partner-requested-reveal', () => {});
 
     socketInstance.on('mutual-reveal', (data: {
       connectionId: string;
       user1: { id: string; realName: string; avatarUrl: string };
       user2: { id: string; realName: string; avatarUrl: string };
     }) => {
-      setRevealedProfiles(data);
-      setShowParticleEffect(true);
-      setTimeout(() => setShowParticleEffect(false), 2500);
-
       // Update reveal state in connections list
       setActiveConnections((prev) =>
         prev.map((c) => {
@@ -435,19 +417,6 @@ export default function App() {
       user2: { id: string; realName: string; avatarUrl: string } | null;
     }) => {
       setChatMessages(data.messages);
-      
-      const isUser1 = data.user1?.id === userIdRef.current;
-      setRevealRequested(isUser1 ? data.user1Reveal : data.user2Reveal);
-      setPartnerRevealPending(isUser1 ? data.user2Reveal : data.user1Reveal);
-
-      if (data.status === 'revealed' && data.user1 && data.user2) {
-        setRevealedProfiles({
-          user1: data.user1,
-          user2: data.user2,
-        });
-      } else {
-        setRevealedProfiles(null);
-      }
     });
 
     socketInstance.on('location-synced', (data: { location: Location }) => {
@@ -620,15 +589,7 @@ export default function App() {
     setTypedMessage('');
   };
 
-  // Trigger reveal identity request
-  const handleRequestReveal = () => {
-    if (!socket || !activeConnectionId) return;
-    setRevealRequested(true);
-    socket.emit('request-reveal', {
-      connectionId: activeConnectionId,
-      userId,
-    });
-  };
+
 
   // Safety actions (Delete, Block, Report)
   const handleSafetyAction = (action: 'delete' | 'block' | 'report', connectionId: string) => {
@@ -741,13 +702,7 @@ export default function App() {
           <Home className="w-5 h-5" />
           <span>Home</span>
         </button>
-        <button 
-          onClick={() => { setActiveTab('connections'); setActiveConnectionId(null); }}
-          className={`mobile-nav-btn ${activeTab === 'connections' ? 'active' : ''}`}
-        >
-          <Sparkles className="w-5 h-5" />
-          <span>Discoveries</span>
-        </button>
+
         <button 
           onClick={() => { setActiveTab('chats'); setActiveConnectionId(null); }}
           className={`mobile-nav-btn ${activeTab === 'chats' ? 'active' : ''}`}
@@ -796,13 +751,7 @@ export default function App() {
               <Home className="w-5 h-5" />
               Home
             </button>
-            <button 
-              onClick={() => { setActiveTab('connections'); setActiveConnectionId(null); }}
-              className={`nav-btn ${activeTab === 'connections' ? 'active' : ''}`}
-            >
-              <MessageCircle className="w-5 h-5" />
-              Connections
-            </button>
+
             <button 
               onClick={() => { setActiveTab('chats'); setActiveConnectionId(null); }}
               className={`nav-btn ${activeTab === 'chats' ? 'active' : ''}`}
@@ -837,7 +786,7 @@ export default function App() {
               </div>
               <div className="flex-1">
                 <h4 className="text-xs font-bold text-white leading-tight">You are anonymous</h4>
-                <p className="text-[10px] text-text-muted mt-0.5">Your identity stays hidden until you both choose to reveal.</p>
+                <p className="text-[10px] text-text-muted mt-0.5">Your identity is always secure and hidden.</p>
               </div>
             </div>
             <button 
@@ -1142,69 +1091,13 @@ export default function App() {
                     </span>
                   </div>
                 </div>
-              ) : activeTab === 'connections' ? (
-                /* Connections Tab Centerpiece */
-                <div className="w-full flex flex-col p-4 md:p-6 text-left">
-                  <div className="flex justify-between items-center mb-6">
-                    <div>
-                      <h3 className="text-xl font-bold font-space text-white">Mutually Revealed Discoveries</h3>
-                      <p className="text-xs text-text-secondary mt-1">Connections that chose to unlock identity sharing.</p>
-                    </div>
-                    <div className="px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-semibold">
-                      {activeConnections.filter(c => c.isRevealed).length} Profiles Unlocked
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-4 overflow-y-auto max-h-[380px] pr-2">
-                    {activeConnections.filter(c => c.isRevealed).length === 0 ? (
-                      <div className="flex flex-col items-center justify-center p-8 text-center bg-white/5 border border-white/10 rounded-2xl w-full">
-                        <Sparkles className="w-8 h-8 text-violet-400 mb-2 animate-pulse" />
-                        <h4 className="font-bold text-white text-sm">No Revealed Discoveries Yet</h4>
-                        <p className="text-xs text-text-secondary mt-1 max-w-xs text-center">
-                          Discoveries will unlock here once both you and your chat partner select 'Reveal Me'.
-                        </p>
-                      </div>
-                    ) : (
-                      activeConnections.filter(c => c.isRevealed).map(c => (
-                        <div key={c.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between hover:border-violet-500/20 transition-all">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full border border-violet-500/20 overflow-hidden bg-violet-500/5 flex items-center justify-center">
-                              <img src={c.avatarUrl || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${c.partnerAlias}`} alt="Avatar" className="w-full h-full object-cover" />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-white text-sm">
-                                {c.realName} <span className="text-xs text-text-secondary font-medium font-mono">@{c.partnerAlias}</span>
-                              </h4>
-                              <p className="text-xs text-violet-400 font-medium">Unlocked • Active connection</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => handleRecentCardClick(c)}
-                              className="px-4 py-2 bg-violet-600 text-white rounded-xl text-xs font-semibold hover:bg-violet-500 transition-all shadow-md shadow-violet-600/10"
-                            >
-                              Chat Again
-                            </button>
-                            <button 
-                              onClick={() => { setActiveSafetyOptionsConnId(c.id); setSafetyPartnerAlias(c.partnerAlias); }}
-                              className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all flex items-center justify-center"
-                              title="Safety Options"
-                            >
-                              <ShieldAlert className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
               ) : activeTab === 'chats' ? (
                 /* Chats Tab Centerpiece */
                 <div className="w-full flex flex-col p-4 md:p-6 text-left">
                   <div className="flex justify-between items-center mb-6">
                     <div>
                       <h3 className="text-xl font-bold font-space text-white">Active Secure Threads</h3>
-                      <p className="text-xs text-text-secondary mt-1">Chat securely and request mutual reveal whenever you are ready.</p>
+                      <p className="text-xs text-text-secondary mt-1">Chat securely and anonymously in real-time.</p>
                     </div>
                     <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
                       {activeConnections.filter(c => c.isOnline).length} Active
@@ -1226,7 +1119,7 @@ export default function App() {
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-full border border-violet-500/20 overflow-hidden bg-white/5 flex items-center justify-center relative">
                               <img 
-                                src={c.isRevealed && c.avatarUrl ? c.avatarUrl : `https://api.dicebear.com/7.x/bottts/svg?seed=${c.partnerAlias}`} 
+                                src={`https://api.dicebear.com/7.x/bottts/svg?seed=${c.partnerAlias}`} 
                                 alt="Avatar" 
                                 className="w-full h-full object-cover" 
                               />
@@ -1234,10 +1127,10 @@ export default function App() {
                             </div>
                             <div>
                               <h4 className="font-bold text-white text-sm">
-                                {c.isRevealed && c.realName ? c.realName : `@${c.partnerAlias}`}
+                                @{c.partnerAlias}
                               </h4>
                               <p className="text-xs text-text-secondary mt-0.5">
-                                {c.isRevealed ? 'Identity Unlocked' : 'Anonymous Mode'} • {c.time}
+                                Active Chat • {c.time}
                               </p>
                             </div>
                           </div>
@@ -1438,18 +1331,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-text-secondary">Real Name (Secret)</label>
-                        <input 
-                          type="text" 
-                          value={realName}
-                          onChange={(e) => setRealName(e.target.value)}
-                          placeholder="Real name (secret)"
-                          className="bar-input w-full"
-                          style={{ background: 'rgba(30, 20, 74, 0.4)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '10px 14px', color: '#fff', fontSize: '0.9rem' }}
-                        />
-                        <p className="text-[10px] text-text-muted">This is only shown to your chat partner when both of you click "Reveal Me".</p>
-                      </div>
+
                     </div>
 
                     <hr className="border-white/5" />
@@ -1545,29 +1427,23 @@ export default function App() {
             ) : (
               /* Real-time Glassmorphic Chat Panel */
               <div className="centerpiece-chat-panel">
-                {showParticleEffect && <div className="reveal-overlay"></div>}
 
                 {/* Chat Header */}
                 <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5 rounded-t-2xl">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden relative bg-white/5">
                       <img 
-                        src={revealedProfiles ? (revealedProfiles.user1.id === userId ? revealedProfiles.user2.avatarUrl : revealedProfiles.user1.avatarUrl) : `https://api.dicebear.com/7.x/bottts/svg?seed=${activePartner?.alias}`} 
+                        src={`https://api.dicebear.com/7.x/bottts/svg?seed=${activePartner?.alias}`} 
                         alt="Avatar" 
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div>
-                      <h4 className="font-bold text-white text-sm">
-                        {revealedProfiles ? (revealedProfiles.user1.id === userId ? revealedProfiles.user2.realName : revealedProfiles.user1.realName) : `@${activePartner?.alias}`}
-                      </h4>
-                      <span className="text-[10px] text-text-secondary flex items-center gap-1">
-                        {revealedProfiles ? (
-                          <span className="text-emerald-400 font-semibold flex items-center gap-0.5"><CheckCircle2 className="w-2.5 h-2.5" /> Identity Revealed</span>
-                        ) : (
-                          <span className="text-amber-400 flex items-center gap-0.5"><Lock className="w-2.5 h-2.5" /> Anonymous Mode</span>
-                        )}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-white text-sm">@{activePartner?.alias}</h4>
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Online"></div>
+                      </div>
+                      <span className="text-[10px] text-text-muted">Secure Anonymous Thread</span>
                     </div>
                   </div>
 
@@ -1602,46 +1478,12 @@ export default function App() {
                         key={msg.id}
                         className={`message-bubble ${isMe ? 'message-sent' : 'message-received'}`}
                       >
-                        <div className="text-[9px] opacity-60 mb-0.5 font-semibold">
-                          {isMe ? 'You' : msg.senderAlias}
-                        </div>
                         <div>{sanitizeText(msg.text)}</div>
                       </div>
                     );
                   })}
                   <div ref={messagesEndRef} />
                 </div>
-
-                {/* Reveal Request Area */}
-                {!revealedProfiles && (
-                  <div className="p-3 border-t border-white/10 bg-white/5 flex items-center justify-between gap-2">
-                    <div className="text-xs text-text-secondary">
-                      {partnerRevealPending ? '⚠️ Partner wants to reveal profile!' : 'Reveal profile to this person?'}
-                    </div>
-                    
-                    <button
-                      onClick={handleRequestReveal}
-                      disabled={revealRequested}
-                      className={`text-xs px-3 py-2 rounded-lg font-semibold flex items-center gap-1 transition-all ${
-                        revealRequested 
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                          : 'bg-violet-600 text-white hover:bg-violet-500 shadow-sm'
-                      }`}
-                    >
-                      {revealRequested ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          Waiting...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-3.5 h-3.5" />
-                          Reveal Me
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
 
                 {/* Input Form */}
                 <form onSubmit={handleSendMessage} className="p-3 border-t border-white/10 flex gap-2">
@@ -1698,12 +1540,12 @@ export default function App() {
 
                     <div className="connection-card-avatar border-violet-500/20">
                       <img 
-                        src={c.isRevealed && c.avatarUrl ? c.avatarUrl : `https://api.dicebear.com/7.x/bottts/svg?seed=${c.partnerAlias}`} 
+                        src={`https://api.dicebear.com/7.x/bottts/svg?seed=${c.partnerAlias}`} 
                         alt="Avatar" 
                       />
                       {c.isOnline && <div className="active-dot"></div>}
                     </div>
-                    <h5>{c.isRevealed && c.realName ? c.realName : `@${c.partnerAlias}`}</h5>
+                    <h5>@{c.partnerAlias}</h5>
                     <p className="text-[10px] text-text-muted mt-0.5">{c.time}</p>
                   </div>
                 ))
@@ -1774,7 +1616,7 @@ export default function App() {
               </div>
               <div className="timeline-content">
                 <h5>Chat anonymously</h5>
-                <p>Talk, connect and decide if you want to reveal.</p>
+                <p>Talk, connect, and enjoy conversations.</p>
               </div>
             </div>
           </div>
@@ -1876,8 +1718,8 @@ export default function App() {
               <div className="modal-list-item">
                 <div className="modal-list-number">3</div>
                 <div className="modal-list-content">
-                  <h5>Double-Opt-In Reveal</h5>
-                  <p>In a chat, your identity remains locked until **both** you and your chat partner select "Reveal Me". It requires mutual consent.</p>
+                  <h5>Full Control</h5>
+                  <p>Your identity is never automatically revealed. You choose what to share and when you want to share it directly in chat.</p>
                 </div>
               </div>
 
