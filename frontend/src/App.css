@@ -742,15 +742,201 @@ input[type="text"]:focus, input[type="number"]:focus, .bar-input:focus {
   min-height: 520px;
 }
 
+/* Mobile Top Header (Visible only on Mobile) */
+.mobile-header {
+  display: none;
+}
+
+/* Mobile Bottom Navigation (Visible only on Mobile) */
+.mobile-bottom-nav {
+  display: none;
+}
+
 /* Mobile responsive dashboard */
 @media (max-width: 1024px) {
+  /* Layout modifications */
   .dashboard-container {
-    grid-template-columns: 1fr;
-    padding: 0 10px;
+    display: block !important;
+    width: 100% !important;
+    padding: 72px 8px 80px 8px !important; /* Top space for mobile-header, bottom space for bottom-nav */
+    gap: 0 !important;
   }
+  
+  /* Hide desktop sidebars */
   .sidebar-left, .sidebar-right {
-    height: auto;
-    position: static;
+    display: none !important;
+  }
+
+  /* Show mobile top header */
+  .mobile-header {
+    display: flex !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 56px !important;
+    background: rgba(3, 0, 20, 0.88) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding: 0 16px !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    z-index: 1000 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .mobile-gps-pill {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    background: rgba(139, 92, 246, 0.12) !important;
+    border: 1px solid rgba(139, 92, 246, 0.25) !important;
+    border-radius: 9999px !important;
+    padding: 6px 12px !important;
+    color: #c084fc !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    transition: all 0.25s ease !important;
+  }
+
+  .mobile-gps-pill.syncing {
+    background: rgba(245, 158, 11, 0.12) !important;
+    border-color: rgba(245, 158, 11, 0.25) !important;
+    color: #fbbf24 !important;
+    animation: pulse 2s infinite !important;
+  }
+
+  .mobile-gps-pill:hover {
+    background: rgba(139, 92, 246, 0.2) !important;
+  }
+
+  /* Show mobile bottom navigation */
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 68px !important;
+    background: rgba(10, 5, 30, 0.92) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding: 8px 12px 14px 12px !important; /* safe area padding */
+    justify-content: space-around !important;
+    align-items: center !important;
+    z-index: 1000 !important;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .mobile-nav-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    color: #94a3b8 !important;
+    font-size: 0.68rem !important;
+    font-weight: 500 !important;
+    width: 20% !important;
+    height: 100% !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .mobile-nav-btn svg {
+    width: 20px !important;
+    height: 20px !important;
+    transition: transform 0.2s ease !important;
+  }
+
+  .mobile-nav-btn:hover {
+    color: #ffffff !important;
+  }
+
+  .mobile-nav-btn.active {
+    color: #c084fc !important;
+    font-weight: 700 !important;
+  }
+
+  .mobile-nav-btn.active svg {
+    color: #c084fc !important;
+    transform: translateY(-2px) !important;
+  }
+
+  /* Onboarding completion row styling on mobile */
+  .profile-onboarding-bar {
+    padding: 16px 20px !important;
+  }
+
+  .profile-inputs-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+  }
+
+  .bar-input-group {
+    width: 100% !important;
+  }
+
+  .bar-input-group input.display-name-input,
+  .bar-input-group input.age-input,
+  .bar-input-group button.location-sync-btn {
+    width: 100% !important;
+  }
+
+  .interests-input-group {
+    min-width: 100% !important;
+  }
+
+  .onboarding-action-group {
+    margin-left: 0 !important;
+    margin-top: 8px !important;
+    width: 100% !important;
+  }
+
+  .onboarding-gradient-btn {
+    width: 100% !important;
+  }
+
+  /* Saturn orb customization for small devices */
+  .orb-discovery-centerpiece {
+    padding: 30px 10px !important;
+  }
+
+  .planet-orb-container {
+    width: 220px !important;
+    height: 220px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .planet-orb {
+    width: 160px !important;
+    height: 160px !important;
+  }
+
+  .planet-ring {
+    width: 260px !important;
+    height: 74px !important;
+  }
+
+  .orb-sweep-beam {
+    width: 210px !important;
+    height: 210px !important;
+  }
+
+  /* Chat view panel container on mobile */
+  .centerpiece-chat-panel {
+    min-height: calc(100vh - 200px) !important;
+  }
+
+  .message-bubble {
+    max-width: 85% !important;
+  }
+
+  /* Custom responsive overrides for dashboard container padding */
+  .flex-1.flex.flex-col.gap-6 {
+    gap: 16px !important;
   }
 }
 

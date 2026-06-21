@@ -646,6 +646,76 @@ export default function App() {
       <div className="absolute top-[10%] left-[20%] w-[350px] h-[350px] rounded-full bg-indigo-900/10 blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[10%] right-[20%] w-[350px] h-[350px] rounded-full bg-cyan-900/10 blur-[120px] pointer-events-none"></div>
 
+      {/* Mobile Top Header */}
+      <header className="mobile-header">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-violet-500 to-fuchsia-500 flex items-center justify-center">
+            <Ghost className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-space font-bold text-white text-sm">InstantMeet</span>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={syncRealLocation}
+            className={`mobile-gps-pill ${locationSynced ? 'synced' : 'syncing'}`}
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            <span>{currentLocation ? formatCoords(currentLocation) : 'Syncing GPS...'}</span>
+          </button>
+
+          <div 
+            onClick={() => { setActiveTab('settings'); setActiveConnectionId(null); }}
+            className="w-8 h-8 rounded-full border border-white/10 overflow-hidden bg-white/5 flex items-center justify-center cursor-pointer"
+            title="Profile Settings"
+          >
+            <img src={avatarUrl || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${alias}`} alt="Avatar" className="w-full h-full object-cover" />
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="mobile-bottom-nav">
+        <button 
+          onClick={() => { setActiveTab('home'); setActiveConnectionId(null); }}
+          className={`mobile-nav-btn ${activeTab === 'home' && !activeConnectionId ? 'active' : ''}`}
+        >
+          <Home className="w-5 h-5" />
+          <span>Home</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('connections'); setActiveConnectionId(null); }}
+          className={`mobile-nav-btn ${activeTab === 'connections' ? 'active' : ''}`}
+        >
+          <Sparkles className="w-5 h-5" />
+          <span>Discoveries</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('chats'); setActiveConnectionId(null); }}
+          className={`mobile-nav-btn ${activeTab === 'chats' ? 'active' : ''}`}
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span>Chats</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('settings'); setActiveConnectionId(null); }}
+          className={`mobile-nav-btn ${activeTab === 'settings' ? 'active' : ''}`}
+        >
+          <Settings className="w-5 h-5" />
+          <span>Settings</span>
+        </button>
+        {isAdmin && (
+          <button 
+            onClick={() => { setActiveTab('admin' as any); setActiveConnectionId(null); }}
+            className={`mobile-nav-btn ${activeTab === 'admin' ? 'active' : ''}`}
+            style={{ color: '#f87171' }}
+          >
+            <ShieldAlert className="w-5 h-5" />
+            <span>Admin</span>
+          </button>
+        )}
+      </nav>
+
       {/* Main Masterpiece 3-Column Grid Layout */}
       <div className="dashboard-container">
            {/* ================= COLUMN 1: LEFT SIDEBAR ================= */}
