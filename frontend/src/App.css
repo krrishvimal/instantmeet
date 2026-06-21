@@ -739,7 +739,8 @@ input[type="text"]:focus, input[type="number"]:focus, .bar-input:focus {
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-height: 520px;
+  height: 520px;
+  overflow: hidden;
 }
 
 /* Mobile Top Header (Visible only on Mobile) */
@@ -927,7 +928,9 @@ input[type="text"]:focus, input[type="number"]:focus, .bar-input:focus {
 
   /* Chat view panel container on mobile */
   .centerpiece-chat-panel {
-    min-height: calc(100vh - 200px) !important;
+    height: calc(100vh - 200px) !important;
+    min-height: unset !important;
+    overflow: hidden !important;
   }
 
   .message-bubble {
@@ -1275,5 +1278,16 @@ input[type="range"]::-webkit-slider-thumb:hover {
   color: #e2e8f0;
   border-bottom-left-radius: 4px;
 }
+
+/* Chat history panel layout & scroll behavior */
+.chat-history-container {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 
 

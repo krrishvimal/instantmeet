@@ -203,7 +203,6 @@ export default function App() {
   // Geolocation & Mocking state
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
   const [locationSynced, setLocationSynced] = useState(false);
-  const [locationMode, setLocationMode] = useState<'gps' | 'city'>('gps');
   const [selectedCity, setSelectedCity] = useState<string>('Mumbai');
 
   // Discovery / Matching State
@@ -481,14 +480,6 @@ export default function App() {
     };
   }, []);
 
-  // Helper to format coordinates in a premium way
-  const formatCoords = (loc: Location | null) => {
-    if (!loc) return 'Syncing GPS...';
-    const latStr = `${Math.abs(loc.lat).toFixed(4)}° ${loc.lat >= 0 ? 'N' : 'S'}`;
-    const lngStr = `${Math.abs(loc.lng).toFixed(4)}° ${loc.lng >= 0 ? 'E' : 'W'}`;
-    return `${latStr}, ${lngStr}`;
-  };
-
   // Generate city coordinates with organic jitter (1-2.5 km offset)
   const getCityWithJitter = (city: City): Location => {
     const radius = 0.009 + Math.random() * 0.013; // 1km to 2.5km offset in degrees
@@ -499,51 +490,27 @@ export default function App() {
     };
   };
 
-  // Fetch and sync GPS location from browser Geolocation API or use selected city
-  const syncLocation = (mode: 'gps' | 'city' = locationMode, cityName: string = selectedCity) => {
+  // Fetch and sync selected city location
+  const syncLocation = (cityName: string = selectedCity) => {
     setLocationSynced(false);
     
-    if (mode === 'city') {
-      const city = INDIAN_CITIES.find(c => c.name === cityName);
-      if (city) {
-        const jitteredLoc = getCityWithJitter(city);
-        setCurrentLocation(jitteredLoc);
-        setLocationSynced(true);
-        if (socket && isRegistered) {
-          socket.emit('update-location', { userId, location: jitteredLoc });
-        }
-      } else {
-        showToast('Selected city not found.', 'error');
+    const city = INDIAN_CITIES.find(c => c.name === cityName);
+    if (city) {
+      const jitteredLoc = getCityWithJitter(city);
+      setCurrentLocation(jitteredLoc);
+      setLocationSynced(true);
+      if (socket && isRegistered) {
+        socket.emit('update-location', { userId, location: jitteredLoc });
       }
-      return;
-    }
-
-    // Default to browser GPS
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          setCurrentLocation(loc);
-          setLocationSynced(true);
-          if (socket && isRegistered) {
-            socket.emit('update-location', { userId, location: loc });
-          }
-        },
-        (err) => {
-          console.error('Error fetching real GPS:', err);
-          showToast('Location access denied. Please allow location permissions in your browser settings.', 'error');
-        },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-      );
     } else {
-      showToast('Geolocation is not supported by your browser.', 'error');
+      showToast('Selected city not found.', 'error');
     }
   };
 
-  // Sync location on mount, registration, or when settings mode changes
+  // Sync location on mount, registration, or when selected city changes
   useEffect(() => {
     syncLocation();
-  }, [isRegistered, socket, userId, locationMode, selectedCity]);
+  }, [isRegistered, socket, userId, selectedCity]);
 
   // Scroll to chat bottom
   useEffect(() => {
@@ -567,7 +534,7 @@ export default function App() {
       return;
     }
     if (!currentLocation) {
-      showToast('Waiting for GPS location sync...', 'warning');
+      showToast('Waiting for location sync...', 'warning');
       return;
     }
 
@@ -753,7 +720,7 @@ export default function App() {
             className={`mobile-gps-pill ${locationSynced ? 'synced' : 'syncing'}`}
           >
             <MapPin className="w-3.5 h-3.5" />
-            <span>{locationMode === 'city' ? `${selectedCity} (City)` : (currentLocation ? formatCoords(currentLocation) : 'Syncing GPS...')}</span>
+            <span>{selectedCity}</span>
           </button>
 
           <div 
@@ -890,10 +857,10 @@ export default function App() {
               <div>
                 <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted">Your Location</span>
                 <p className="text-sm font-bold text-white mt-0.5">
-                  {locationMode === 'city' ? `${selectedCity} (City)` : (currentLocation ? formatCoords(currentLocation) : 'Syncing GPS...')}
+                  📍 {selectedCity}
                 </p>
                 <p className={`text-[10px] font-medium mt-0.5 ${locationSynced ? 'text-violet-400' : 'text-amber-400 animate-pulse'}`}>
-                  {locationSynced ? (locationMode === 'city' ? 'City Mode Active' : `Within ${discoveryRadius} km radius`) : 'Syncing GPS...'}
+                  {locationSynced ? 'City Mode Active' : 'Syncing City...'}
                 </p>
               </div>
             </div>
@@ -902,7 +869,7 @@ export default function App() {
               onClick={() => syncLocation()}
               className="change-location-btn"
             >
-              <span>{locationMode === 'city' ? 'Recenter City' : 'Refresh Location'}</span>
+              <span>Recenter City</span>
               <Target className="w-4 h-4 text-text-secondary" />
             </button>
           </div>
@@ -973,62 +940,31 @@ export default function App() {
                   <div className="bar-input-group flex-1" style={{ minWidth: '240px' }}>
                     <label>
                       <MapPin className="w-4 h-4 text-violet-400" />
-                      <span>Matching Location</span>
+                      <span>Select City</span>
                     </label>
                     
                     <div className="flex flex-col gap-2">
-                      <div className="flex rounded-lg bg-white/5 border border-white/10 p-1 w-full" style={{ height: '38px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setLocationMode('gps')}
-                          className={`flex-1 text-[11px] font-semibold rounded-md transition-all ${locationMode === 'gps' ? 'bg-violet-600 text-white' : 'text-text-secondary hover:text-white'}`}
-                        >
-                          📍 GPS
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setLocationMode('city')}
-                          className={`flex-1 text-[11px] font-semibold rounded-md transition-all ${locationMode === 'city' ? 'bg-violet-600 text-white' : 'text-text-secondary hover:text-white'}`}
-                        >
-                          🏙️ City
-                        </button>
-                      </div>
-
-                      {locationMode === 'gps' ? (
-                        <button 
-                          type="button"
-                          onClick={() => syncLocation('gps')}
-                          className="bar-input location-sync-btn w-full"
-                          title="Click to sync accurate GPS location"
-                        >
-                          <span className="truncate">
-                            {currentLocation ? `${currentLocation.lat.toFixed(4)}°, ${currentLocation.lng.toFixed(4)}°` : 'Syncing GPS...'}
-                          </span>
-                          <Loader2 className={`w-3.5 h-3.5 flex-shrink-0 text-violet-400 ${!locationSynced ? 'animate-spin' : ''}`} />
-                        </button>
-                      ) : (
-                        <select
-                          value={selectedCity}
-                          onChange={(e) => setSelectedCity(e.target.value)}
-                          className="bar-input w-full cursor-pointer"
-                          style={{
-                            background: 'rgba(30, 20, 74, 0.4)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '12px',
-                            padding: '10px 14px',
-                            color: '#fff',
-                            fontSize: '0.9rem',
-                            height: '42px',
-                            outline: 'none',
-                          }}
-                        >
-                          {INDIAN_CITIES.map((c) => (
-                            <option key={c.name} value={c.name} style={{ background: '#120c2d', color: '#fff' }}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
+                      <select
+                        value={selectedCity}
+                        onChange={(e) => setSelectedCity(e.target.value)}
+                        className="bar-input w-full cursor-pointer"
+                        style={{
+                          background: 'rgba(30, 20, 74, 0.4)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '12px',
+                          padding: '10px 14px',
+                          color: '#fff',
+                          fontSize: '0.9rem',
+                          height: '42px',
+                          outline: 'none',
+                        }}
+                      >
+                        {INDIAN_CITIES.map((c) => (
+                          <option key={c.name} value={c.name} style={{ background: '#120c2d', color: '#fff' }}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
@@ -1441,62 +1377,31 @@ export default function App() {
                     <hr className="border-white/5" />
 
                     <div className="flex flex-col gap-3">
-                      <span className="text-xs uppercase font-bold tracking-wider text-text-muted">Matching Location</span>
+                      <span className="text-xs uppercase font-bold tracking-wider text-text-muted">Select City</span>
                       
                       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-end">
-                        <div className="flex rounded-lg bg-white/5 border border-white/10 p-1" style={{ height: '42px', minWidth: '180px' }}>
-                          <button
-                            type="button"
-                            onClick={() => setLocationMode('gps')}
-                            className={`flex-1 text-xs font-semibold rounded-md transition-all ${locationMode === 'gps' ? 'bg-violet-600 text-white' : 'text-text-secondary hover:text-white'}`}
-                          >
-                            📍 Use GPS
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setLocationMode('city')}
-                            className={`flex-1 text-xs font-semibold rounded-md transition-all ${locationMode === 'city' ? 'bg-violet-600 text-white' : 'text-text-secondary hover:text-white'}`}
-                          >
-                            🏙️ Choose City
-                          </button>
-                        </div>
-
                         <div className="flex-1">
-                          {locationMode === 'gps' ? (
-                            <button
-                              type="button"
-                              onClick={() => syncLocation('gps')}
-                              className="change-location-btn w-full"
-                              style={{ height: '42px' }}
-                            >
-                              <span className="truncate">
-                                {currentLocation ? formatCoords(currentLocation) : 'Syncing GPS...'}
-                              </span>
-                              <Target className={`w-4 h-4 text-text-secondary ${!locationSynced ? 'animate-spin' : ''}`} />
-                            </button>
-                          ) : (
-                            <select
-                              value={selectedCity}
-                              onChange={(e) => setSelectedCity(e.target.value)}
-                              className="bar-input w-full cursor-pointer"
-                              style={{
-                                background: 'rgba(30, 20, 74, 0.4)',
-                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                borderRadius: '12px',
-                                padding: '10px 14px',
-                                color: '#fff',
-                                fontSize: '0.9rem',
-                                height: '42px',
-                                outline: 'none',
-                              }}
-                            >
-                              {INDIAN_CITIES.map((c) => (
-                                <option key={c.name} value={c.name} style={{ background: '#120c2d', color: '#fff' }}>
-                                  {c.name}
-                                </option>
-                              ))}
-                            </select>
-                          )}
+                          <select
+                            value={selectedCity}
+                            onChange={(e) => setSelectedCity(e.target.value)}
+                            className="bar-input w-full cursor-pointer"
+                            style={{
+                              background: 'rgba(30, 20, 74, 0.4)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              borderRadius: '12px',
+                              padding: '10px 14px',
+                              color: '#fff',
+                              fontSize: '0.9rem',
+                              height: '42px',
+                              outline: 'none',
+                            }}
+                          >
+                            {INDIAN_CITIES.map((c) => (
+                              <option key={c.name} value={c.name} style={{ background: '#120c2d', color: '#fff' }}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -1705,7 +1610,7 @@ export default function App() {
                 </div>
 
                 {/* Chat History Panel */}
-                <div className="flex-1 p-4 overflow-y-auto flex flex-col min-h-[300px]">
+                <div className="chat-history-container">
                   {chatMessages.map((msg) => {
                     const isMe = msg.senderId === userId;
                     return (
