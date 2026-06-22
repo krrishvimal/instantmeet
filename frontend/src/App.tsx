@@ -1,5 +1,5 @@
 // InstantMeet Frontend - Responsive Mobile Web App
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { 
   Radar, 
@@ -1203,7 +1203,15 @@ export default function App() {
     );
   };
 
-  const filteredUsers = nearbyUsers.filter(user => {
+  const sortedNearbyUsers = useMemo(() => {
+    return [...nearbyUsers].sort((a, b) => {
+      const sharedA = a.interests ? a.interests.filter(tag => selectedTags.includes(tag)).length : 0;
+      const sharedB = b.interests ? b.interests.filter(tag => selectedTags.includes(tag)).length : 0;
+      return sharedB - sharedA;
+    });
+  }, [nearbyUsers, selectedTags]);
+
+  const filteredUsers = sortedNearbyUsers.filter(user => {
     if (!activeInterestFilter) return true;
     return user.interests && user.interests.includes(activeInterestFilter);
   });
