@@ -170,11 +170,21 @@ function broadcastAdminStats() {
 
   const bannedList = Array.from(bannedUsers);
 
+  // Calculate city activity breakdown based on online users
+  const cityStats: { [city: string]: number } = {};
+  users.forEach((user) => {
+    if (user.isOnline) {
+      const city = user.city || 'Mumbai';
+      cityStats[city] = (cityStats[city] || 0) + 1;
+    }
+  });
+
   const stats = {
     activeUsersCount: users.size,
     activeConnectionsCount: connections.size,
     reports: reportsList,
     banned: bannedList,
+    cities: cityStats,
   };
 
   adminSockets.forEach((adminSocketId) => {
