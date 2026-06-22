@@ -1708,6 +1708,17 @@ export default function App() {
           {/* B. Centerpiece View (Radar Orb OR Active Chat Room) */}
           <div className={`glass-panel flex-1 flex flex-col justify-center items-center min-h-[420px] relative ${activeConnectionId ? 'p-3 md:p-6 chat-active-panel' : 'p-6'}`}>
             
+            {isRegistered && !activeConnectionId && activeTab === 'home' && (
+              <button
+                onClick={() => setIsRegistered(false)}
+                className="absolute top-4 left-4 p-2 rounded-lg bg-white/5 border border-white/10 text-text-secondary hover:text-white hover:bg-white/10 transition-all flex items-center gap-1.5 text-xs font-semibold cursor-pointer z-10"
+                title="Go Back & Edit Profile"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Edit Profile</span>
+              </button>
+            )}
+
             {errorMsg && (
               <div className="absolute top-4 left-4 right-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4" />
