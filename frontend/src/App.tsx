@@ -823,6 +823,7 @@ export default function App() {
   useEffect(() => {
     syncLocation();
     setIsSubscribedToCityAlerts(false); // Reset alerts subscription state when city changes
+    setIsGlobalSearchActive(false); // Reset global search status when city changes
     setActiveInterestFilter(null);
     setBatchIndex(0);
   }, [isRegistered, socket, userId, selectedCity]);
@@ -912,11 +913,12 @@ export default function App() {
     if (!socket || !userId) return;
     setIsScanning(true);
     setShowGlobalFallbackPrompt(false);
-    setIsGlobalSearchActive(false);
+    // Persist global search status if already active, otherwise default to local
+    const isGlobal = isGlobalSearchActive;
     setSelectedNode(null);
     setBatchIndex(0);
     setActiveInterestFilter(null);
-    socket.emit('search-nearby', { userId, radius: 50 });
+    socket.emit('search-nearby', { userId, radius: 50, global: isGlobal });
   };
 
   // Trigger global fallback search
