@@ -414,13 +414,6 @@ export default function App() {
     socketInstance.on('registration-success', (data: { userId: string; alias: string }) => {
       setUserId(data.userId);
       setIsRegistered(true);
-      // Auto-trigger search immediately after registration so user sees results (or global fallback)
-      setIsScanning(true);
-      setSelectedNode(null);
-      setBatchIndex(0);
-      setActiveInterestFilter(null);
-      setShowGlobalFallbackPrompt(false);
-      socketInstance.emit('search-nearby', { userId: data.userId, radius: 50, global: false });
     });
 
     socketInstance.on('incoming-connection-request', (data: {
