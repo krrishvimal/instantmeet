@@ -228,7 +228,7 @@ export default function App() {
   // Geolocation & Mocking state
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
   const [locationSynced, setLocationSynced] = useState(false);
-  const [selectedCity, setSelectedCity] = useState<string>('Mumbai');
+  const [selectedCity, setSelectedCity] = useState<string>('');
 
   // Discovery / Matching State
   const [isScanning, setIsScanning] = useState(false);
@@ -804,6 +804,7 @@ export default function App() {
 
   // Fetch and sync selected city location
   const syncLocation = (cityName: string = selectedCity) => {
+    if (!cityName) return;
     setLocationSynced(false);
     
     const city = INDIAN_CITIES.find(c => c.name === cityName);
@@ -847,6 +848,10 @@ export default function App() {
     const resolvedRealName = realName.trim() || alias.trim();
     if (selectedTags.length < 2) {
       showToast('Select at least 2 interests to enter.', 'warning');
+      return;
+    }
+    if (!selectedCity) {
+      showToast('Please select your location first.', 'warning');
       return;
     }
     if (!currentLocation) {
@@ -1497,10 +1502,10 @@ export default function App() {
               <div>
                 <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted">Your Location</span>
                 <p className="text-sm font-bold text-white mt-0.5">
-                  📍 {selectedCity}
+                  📍 {selectedCity || 'Not Selected'}
                 </p>
                 <p className={`text-[10px] font-medium mt-0.5 ${locationSynced ? 'text-violet-400' : 'text-amber-400 animate-pulse'}`}>
-                  {locationSynced ? 'City Mode Active' : 'Syncing City...'}
+                  {locationSynced ? 'City Mode Active' : (selectedCity ? 'Syncing City...' : 'Select a City')}
                 </p>
               </div>
             </div>
@@ -1548,7 +1553,7 @@ export default function App() {
                       type="text" 
                       value={alias}
                       onChange={(e) => setAlias(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
-                      placeholder="NightOwl"
+                      placeholder="Enter your name"
                       className="bar-input display-name-input"
                     />
                   </div>
@@ -1623,12 +1628,15 @@ export default function App() {
                           border: '1px solid rgba(255, 255, 255, 0.08)',
                           borderRadius: '12px',
                           padding: '10px 14px',
-                          color: '#fff',
+                          color: selectedCity ? '#fff' : 'rgba(255, 255, 255, 0.4)',
                           fontSize: '0.9rem',
                           height: '42px',
                           outline: 'none',
                         }}
                       >
+                        <option value="" disabled hidden style={{ background: '#120c2d', color: 'rgba(255, 255, 255, 0.4)' }}>
+                          Enter your location
+                        </option>
                         {INDIAN_CITIES.map((c) => (
                           <option key={c.name} value={c.name} style={{ background: '#120c2d', color: '#fff' }}>
                             {c.name}
@@ -1779,27 +1787,45 @@ export default function App() {
               activeTab === 'home' ? (
                 !isRegistered ? (
                   /* Premium Welcome / Radar Standby Panel */
-                  <div className="flex flex-col items-center justify-center text-center p-8 max-w-md mx-auto animate-fadeIn w-full" style={{ animationDuration: '0.4s' }}>
-                    <div className="relative mb-6">
-                      <div className="w-24 h-24 rounded-full bg-violet-600/10 border border-violet-500/25 flex items-center justify-center relative">
-                        <div className="absolute inset-0 rounded-full border border-violet-500/10 animate-ping" style={{ animationDuration: '3s' }}></div>
-                        <div className="absolute -inset-2 rounded-full border border-cyan-500/5 animate-pulse" style={{ animationDuration: '4s' }}></div>
-                        <Radar className="w-10 h-10 text-cyan-400 animate-pulse" />
+                  <div className="flex flex-col items-center justify-center text-center p-8 md:p-12 max-w-xl mx-auto animate-fadeIn w-full" style={{ animationDuration: '0.4s', gap: '28px' }}>
+                    <div className="relative flex items-center justify-center">
+                      {/* Premium Rotating Radar Scope Mockup */}
+                      <div className="relative w-32 h-32 rounded-full border border-violet-500/25 bg-violet-950/20 flex items-center justify-center overflow-hidden shadow-2xl shadow-violet-500/10">
+                        {/* Concentric helper rings */}
+                        <div className="absolute w-22 h-22 rounded-full border border-violet-500/15"></div>
+                        <div className="absolute w-12 h-12 rounded-full border border-violet-500/10"></div>
+                        
+                        {/* Conic scanning sweep line */}
+                        <div 
+                          className="absolute inset-0 animate-spin" 
+                          style={{ 
+                            animationDuration: '5s', 
+                            background: 'conic-gradient(from 180deg at 50% 50%, transparent 60%, rgba(34, 211, 238, 0.22) 100%)',
+                            borderRadius: '50%'
+                          }}
+                        ></div>
+                        
+                        {/* Glowing centerpiece beacon node */}
+                        <div className="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.85)] animate-pulse z-10"></div>
                       </div>
-                      <span className="absolute bottom-0 right-0 bg-violet-600 border border-violet-400 text-white rounded-full p-1 shadow-lg">
-                        <ShieldAlert className="w-3.5 h-3.5" />
-                      </span>
                     </div>
 
-                    <h3 className="text-xl font-bold font-space text-white tracking-tight">Radar Standby Mode</h3>
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-[0.25em] text-cyan-400 font-extrabold bg-cyan-950/40 border border-cyan-500/20 px-3.5 py-1 rounded-full">
+                        radar system
+                      </span>
+                      <h3 className="text-2xl font-extrabold font-space text-white tracking-tight mt-1">Standby Mode</h3>
+                    </div>
                     
-                    <p className="text-xs text-text-secondary mt-3 leading-relaxed max-w-xs">
-                      InstantMeet connects you anonymously and securely in real-time. Complete your anonymous profile above and click <strong className="text-violet-300 font-semibold">Search People</strong> to activate the live radar.
+                    <p className="text-xs text-text-secondary leading-relaxed max-w-xs mx-auto -mt-2">
+                      InstantMeet connects you anonymously and securely in real-time. Complete your anonymous profile details above and click <strong className="text-violet-300 font-semibold">Search People</strong> to activate the scanner.
                     </p>
 
-                    <div className="flex items-center gap-2 mt-6 px-4 py-2 rounded-full bg-cyan-500/5 border border-cyan-500/15 text-cyan-300 text-[10.5px] font-medium tracking-wide">
-                      <Users className="w-3.5 h-3.5 animate-pulse text-cyan-400" />
-                      <span>Scanner will search for active connections in {selectedCity}</span>
+                    <div className="flex items-center gap-2.5 px-5 py-3 rounded-full bg-white/5 border border-white/10 text-[11px] font-medium tracking-wide">
+                      <div className={`w-2 h-2 rounded-full ${selectedCity ? 'bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]'}`}></div>
+                      <span className={selectedCity ? 'text-cyan-300' : 'text-amber-300'}>
+                        {selectedCity ? `Scanner ready to search in ${selectedCity}` : 'Please select your city above to sync radar'}
+                      </span>
                     </div>
                   </div>
                 ) : (
