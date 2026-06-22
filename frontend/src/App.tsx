@@ -1777,212 +1777,239 @@ export default function App() {
 
             {!activeConnectionId ? (
               activeTab === 'home' ? (
-                /* Saturn Radar Orb Centerpiece */
-                <div className="orb-discovery-centerpiece w-full">
-                  <div className="planet-orb-container glow-primary">
-                    {isScanning && <div className="orb-sweep-beam"></div>}
-                    <div className="planet-ring"></div>
-                    
-                    {/* Glowing core sphere */}
-                    <div className="planet-orb">
-                      <span className="text-4xl font-extrabold font-space">
-                        {isScanning ? <Loader2 className="w-8 h-8 animate-spin" /> : filteredUsers.length}
+                !isRegistered ? (
+                  /* Premium Welcome / Radar Standby Panel */
+                  <div className="flex flex-col items-center justify-center text-center p-8 max-w-md mx-auto animate-fadeIn w-full" style={{ animationDuration: '0.4s' }}>
+                    <div className="relative mb-6">
+                      <div className="w-24 h-24 rounded-full bg-violet-600/10 border border-violet-500/25 flex items-center justify-center relative">
+                        <div className="absolute inset-0 rounded-full border border-violet-500/10 animate-ping" style={{ animationDuration: '3s' }}></div>
+                        <div className="absolute -inset-2 rounded-full border border-cyan-500/5 animate-pulse" style={{ animationDuration: '4s' }}></div>
+                        <Radar className="w-10 h-10 text-cyan-400 animate-pulse" />
+                      </div>
+                      <span className="absolute bottom-0 right-0 bg-violet-600 border border-violet-400 text-white rounded-full p-1 shadow-lg">
+                        <ShieldAlert className="w-3.5 h-3.5" />
                       </span>
-                      <span className="text-[11px] uppercase tracking-wider text-violet-300 font-semibold mt-1">people online</span>
-                      <span className="text-[9px] text-text-secondary mt-0.5">{isGlobalSearchActive ? 'globally' : `in ${selectedCity}`}</span>
                     </div>
 
-                    {/* Real-time matched users positioned around the orb ring */}
-                    {!isScanning && visibleUsersBatch.map((nu, i) => {
-                      const angle = (i * 360) / (visibleUsersBatch.length || 1) - 30;
-                      const radian = (angle * Math.PI) / 180;
-                      
-                      // Alternate between 3 orbits (0: inner, 1: middle, 2: outer)
-                      const orbitIndex = i % 3;
-                      
-                      // Calculate radius dynamically based on viewport size
-                      const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
-                      
-                      let baseRadius = 115; // middle orbit on desktop
-                      if (orbitIndex === 0) baseRadius = 95; // inner
-                      if (orbitIndex === 2) baseRadius = 135; // outer
-                      
-                      if (isMobile) {
-                        baseRadius = 90; // middle on mobile
-                        if (orbitIndex === 0) baseRadius = 75; // inner
-                        if (orbitIndex === 2) baseRadius = 105; // outer
-                      }
+                    <h3 className="text-xl font-bold font-space text-white tracking-tight">Radar Standby Mode</h3>
+                    
+                    <p className="text-xs text-text-secondary mt-3 leading-relaxed max-w-xs">
+                      InstantMeet connects you anonymously and securely in real-time. Complete your anonymous profile above and click <strong className="text-violet-300 font-semibold">Search People</strong> to activate the live radar.
+                    </p>
 
-                      const x = Math.cos(radian) * baseRadius;
-                      const y = Math.sin(radian) * baseRadius;
-
-                      return (
-                        <button
-                          key={nu.userId}
-                          onClick={() => setSelectedNode(nu)}
-                          style={{ transform: `translate(${x}px, ${y}px)` }}
-                          className={`radar-node-on-orb ${selectedNode?.userId === nu.userId ? 'scale-125 border-cyan-400 border-2' : ''}`}
-                          title={`@${nu.alias}`}
-                        >
-                          <Users className="w-3.5 h-3.5 text-white" />
-                        </button>
-                      );
-                    })}
+                    <div className="flex items-center gap-2 mt-6 px-4 py-2 rounded-full bg-cyan-500/5 border border-cyan-500/15 text-cyan-300 text-[10.5px] font-medium tracking-wide">
+                      <Users className="w-3.5 h-3.5 animate-pulse text-cyan-400" />
+                      <span>Scanner will search for active connections in {selectedCity}</span>
+                    </div>
                   </div>
+                ) : (
+                  /* Saturn Radar Orb Centerpiece */
+                  <div className="orb-discovery-centerpiece w-full">
+                    <div className="planet-orb-container glow-primary">
+                      {isScanning && <div className="orb-sweep-beam"></div>}
+                      <div className="planet-ring"></div>
+                      
+                      {/* Glowing core sphere */}
+                      <div className="planet-orb">
+                        <span className="text-4xl font-extrabold font-space">
+                          {isScanning ? <Loader2 className="w-8 h-8 animate-spin" /> : filteredUsers.length}
+                        </span>
+                        <span className="text-[11px] uppercase tracking-wider text-violet-300 font-semibold mt-1">people online</span>
+                        <span className="text-[9px] text-text-secondary mt-0.5">{isGlobalSearchActive ? 'globally' : `in ${selectedCity}`}</span>
+                      </div>
 
-                  {/* Vibe filter pills toggles */}
-                  {isRegistered && nearbyUsers.length > 0 && (
-                    <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto mb-6 px-4">
-                      {selectedTags.map(tag => {
-                        const isActive = activeInterestFilter === tag;
+                      {/* Real-time matched users positioned around the orb ring */}
+                      {!isScanning && visibleUsersBatch.map((nu, i) => {
+                        const angle = (i * 360) / (visibleUsersBatch.length || 1) - 30;
+                        const radian = (angle * Math.PI) / 180;
+                        
+                        // Alternate between 3 orbits (0: inner, 1: middle, 2: outer)
+                        const orbitIndex = i % 3;
+                        
+                        // Calculate radius dynamically based on viewport size
+                        const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+                        
+                        let baseRadius = 115; // middle orbit on desktop
+                        if (orbitIndex === 0) baseRadius = 95; // inner
+                        if (orbitIndex === 2) baseRadius = 135; // outer
+                        
+                        if (isMobile) {
+                          baseRadius = 90; // middle on mobile
+                          if (orbitIndex === 0) baseRadius = 75; // inner
+                          if (orbitIndex === 2) baseRadius = 105; // outer
+                        }
+
+                        const x = Math.cos(radian) * baseRadius;
+                        const y = Math.sin(radian) * baseRadius;
+
                         return (
                           <button
-                            key={tag}
-                            onClick={() => {
-                              setActiveInterestFilter(isActive ? null : tag);
-                              setBatchIndex(0);
-                            }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-300 ${
-                              isActive
-                                ? 'bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/30 scale-105'
-                                : 'bg-white/5 border-white/10 text-violet-300 hover:bg-white/10 hover:border-violet-500/30'
-                            }`}
+                            key={nu.userId}
+                            onClick={() => setSelectedNode(nu)}
+                            style={{ transform: `translate(${x}px, ${y}px)` }}
+                            className={`radar-node-on-orb ${selectedNode?.userId === nu.userId ? 'scale-125 border-cyan-400 border-2' : ''}`}
+                            title={`@${nu.alias}`}
                           >
-                            #{tag}
+                            <Users className="w-3.5 h-3.5 text-white" />
                           </button>
                         );
                       })}
                     </div>
-                  )}
 
-                  <div className="flex flex-col items-center gap-4">
-                    {selectedNode ? (
-                      <div className="glass-panel p-6 flex flex-col items-center text-center max-w-xs border-cyan-500/20 animate-fadeIn" style={{ animationDuration: '0.3s', position: 'relative' }}>
-                        <button
-                          onClick={() => setSelectedNode(null)}
-                          className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-text-secondary hover:text-white hover:bg-white/10 transition-all flex items-center justify-center cursor-pointer z-10"
-                          style={{ position: 'absolute', top: '12px', right: '12px' }}
-                          title="Close Details"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                        <h4 className="font-extrabold text-white text-lg tracking-tight">@{selectedNode.alias}</h4>
-                        <p className="text-xs text-cyan-400 font-semibold mt-1.5">
-                          Online in {selectedNode.city || selectedCity}{selectedNode.age > 0 ? ` • ${selectedNode.age}y/o` : ''}{selectedNode.gender ? ` • ${selectedNode.gender.charAt(0).toUpperCase() + selectedNode.gender.slice(1)}` : ''}
-                        </p>
-                        <div className="flex flex-wrap gap-2 justify-center mt-3.5 mb-2">
-                          {selectedNode.interests.length > 0 ? (
-                            selectedNode.interests.slice(0, 3).map(tag => (
-                              <span key={tag} className="text-[10px] px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 font-medium tracking-wide">
-                                #{tag}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-[10px] px-2.5 py-1 rounded-full bg-violet-950/20 border border-violet-900/30 text-violet-400 font-medium italic">
-                              Stealth Mode Active 🔒
-                            </span>
-                          )}
-                        </div>
-
-                        <button 
-                          onClick={handleSendWave}
-                          className="btn-primary py-2.5 px-6 mt-4 text-xs font-bold tracking-wider w-full max-w-[210px] shadow-lg shadow-violet-500/25 transition-all duration-300 hover:scale-[1.03]"
-                        >
-                          Connect Anonymous Chat
-                        </button>
+                    {/* Vibe filter pills toggles */}
+                    {isRegistered && nearbyUsers.length > 0 && (
+                      <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto mb-6 px-4">
+                        {selectedTags.map(tag => {
+                          const isActive = activeInterestFilter === tag;
+                          return (
+                            <button
+                              key={tag}
+                              onClick={() => {
+                                setActiveInterestFilter(isActive ? null : tag);
+                                setBatchIndex(0);
+                              }}
+                              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-300 ${
+                                isActive
+                                  ? 'bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/30 scale-105'
+                                  : 'bg-white/5 border-white/10 text-violet-300 hover:bg-white/10 hover:border-violet-500/30'
+                              }`}
+                            >
+                              #{tag}
+                            </button>
+                          );
+                        })}
                       </div>
-                    ) : showGlobalFallbackPrompt ? (
-                      <div className="glass-panel p-4 flex flex-col items-center text-center max-w-xs border-violet-500/20 animate-fadeIn" style={{ animationDuration: '0.3s' }}>
-                        <Globe className="w-6 h-6 text-violet-400 animate-pulse mb-2" />
-                        <h4 className="font-bold text-white text-sm">No matches in {selectedCity}</h4>
-                        <p className="text-[11px] text-text-secondary mt-1">
-                          No one is online in your city right now. Would you like to expand your search and match with someone globally?
-                        </p>
-                        
-                        <button
-                          onClick={handleSubscribeCityAlerts}
-                          className={`btn-alert-subscribe mt-3 ${isSubscribedToCityAlerts ? 'active' : ''}`}
-                          disabled={isSubscribedToCityAlerts}
-                        >
-                          {isSubscribedToCityAlerts ? '🔔 Alerts Active' : `Alert me when ${selectedCity} goes active 🔔`}
-                        </button>
+                    )}
 
-                        <div className="flex gap-2 mt-4 w-full">
-                          <button 
-                            onClick={handleGlobalSearch}
-                            className="btn-primary py-2 px-3 flex-1 text-xs"
-                            style={{ minWidth: 'unset', padding: '10px' }}
-                          >
-                            Search Globally
-                          </button>
-                          <button 
-                            onClick={() => setShowGlobalFallbackPrompt(false)}
-                            className="change-location-btn py-2 px-3 flex-1 text-xs"
-                            style={{ justifyContent: 'center', padding: '10px' }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-3 w-full">
-                        <div className="flex flex-wrap gap-3 justify-center items-center w-full">
+                    <div className="flex flex-col items-center gap-4">
+                      {selectedNode ? (
+                        <div className="glass-panel p-6 flex flex-col items-center text-center max-w-xs border-cyan-500/20 animate-fadeIn" style={{ animationDuration: '0.3s', position: 'relative' }}>
                           <button
-                            onClick={handleSearch}
-                            disabled={isScanning || !isRegistered}
-                            className="btn-primary"
+                            onClick={() => setSelectedNode(null)}
+                            className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-text-secondary hover:text-white hover:bg-white/10 transition-all flex items-center justify-center cursor-pointer z-10"
+                            style={{ position: 'absolute', top: '12px', right: '12px' }}
+                            title="Close Details"
                           >
-                            {isScanning ? (
-                              <>
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                Searching...
-                              </>
-                            ) : (
-                              <>
-                                <Radar className="w-5 h-5 animate-pulse" />
-                                Search People
-                              </>
-                            )}
+                            <X className="w-3.5 h-3.5" />
                           </button>
+                          <h4 className="font-extrabold text-white text-lg tracking-tight">@{selectedNode.alias}</h4>
+                          <p className="text-xs text-cyan-400 font-semibold mt-1.5">
+                            Online in {selectedNode.city || selectedCity}{selectedNode.age > 0 ? ` • ${selectedNode.age}y/o` : ''}{selectedNode.gender ? ` • ${selectedNode.gender.charAt(0).toUpperCase() + selectedNode.gender.slice(1)}` : ''}
+                          </p>
+                          <div className="flex flex-wrap gap-2 justify-center mt-3.5 mb-2">
+                            {selectedNode.interests.length > 0 ? (
+                              selectedNode.interests.slice(0, 3).map(tag => (
+                                <span key={tag} className="text-[10px] px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 font-medium tracking-wide">
+                                  #{tag}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[10px] px-2.5 py-1 rounded-full bg-violet-950/20 border border-violet-900/30 text-violet-400 font-medium italic">
+                                Stealth Mode Active 🔒
+                              </span>
+                            )}
+                          </div>
 
-                          {isGlobalSearchActive && !isScanning && (
-                            <button
-                              onClick={handleResetToLocalSearch}
-                              className="change-location-btn py-2 px-3 text-xs"
-                              style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '42px', minWidth: 'unset', justifyContent: 'center' }}
-                            >
-                              <MapPin className="w-3.5 h-3.5 text-violet-400" />
-                              <span>Search in {selectedCity}</span>
-                            </button>
-                          )}
-
-                          {totalBatches > 1 && !isScanning && (
-                            <button
-                              onClick={handleNextBatch}
-                              className="btn-primary flex items-center gap-1.5"
-                            >
-                              Sweep ({batchIndex + 1}/{totalBatches}) 🔄
-                            </button>
-                          )}
+                          <button 
+                            onClick={handleSendWave}
+                            className="btn-primary py-2.5 px-6 mt-4 text-xs font-bold tracking-wider w-full max-w-[210px] shadow-lg shadow-violet-500/25 transition-all duration-300 hover:scale-[1.03]"
+                          >
+                            Connect Anonymous Chat
+                          </button>
                         </div>
-                        
-                        {!isScanning && isRegistered && nearbyUsers.length === 0 && (
+                      ) : showGlobalFallbackPrompt ? (
+                        <div className="glass-panel p-4 flex flex-col items-center text-center max-w-xs border-violet-500/20 animate-fadeIn" style={{ animationDuration: '0.3s' }}>
+                          <Globe className="w-6 h-6 text-violet-400 animate-pulse mb-2" />
+                          <h4 className="font-bold text-white text-sm">No matches in {selectedCity}</h4>
+                          <p className="text-[11px] text-text-secondary mt-1">
+                            No one is online in your city right now. Would you like to expand your search and match with someone globally?
+                          </p>
+                          
                           <button
                             onClick={handleSubscribeCityAlerts}
-                            className={`btn-alert-subscribe mt-2 ${isSubscribedToCityAlerts ? 'active' : ''}`}
+                            className={`btn-alert-subscribe mt-3 ${isSubscribedToCityAlerts ? 'active' : ''}`}
                             disabled={isSubscribedToCityAlerts}
                           >
                             {isSubscribedToCityAlerts ? '🔔 Alerts Active' : `Alert me when ${selectedCity} goes active 🔔`}
                           </button>
-                        )}
-                      </div>
-                    )}
-                    
-                    <span className="text-[10px] text-text-muted flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-text-muted" /> We never share your exact location
-                    </span>
+
+                          <div className="flex gap-2 mt-4 w-full">
+                            <button 
+                              onClick={handleGlobalSearch}
+                              className="btn-primary py-2 px-3 flex-1 text-xs"
+                              style={{ minWidth: 'unset', padding: '10px' }}
+                            >
+                              Search Globally
+                            </button>
+                            <button 
+                              onClick={() => setShowGlobalFallbackPrompt(false)}
+                              className="change-location-btn py-2 px-3 flex-1 text-xs"
+                              style={{ justifyContent: 'center', padding: '10px' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-3 w-full">
+                          <div className="flex flex-wrap gap-3 justify-center items-center w-full">
+                            <button
+                              onClick={handleSearch}
+                              disabled={isScanning || !isRegistered}
+                              className="btn-primary"
+                            >
+                              {isScanning ? (
+                                <>
+                                  <Loader2 className="w-5 h-5 animate-spin" />
+                                  Searching...
+                                </>
+                              ) : (
+                                <>
+                                  <Radar className="w-5 h-5 animate-pulse" />
+                                  Search People
+                                </>
+                              )}
+                            </button>
+
+                            {isGlobalSearchActive && !isScanning && (
+                              <button
+                                onClick={handleResetToLocalSearch}
+                                className="change-location-btn py-2 px-3 text-xs"
+                                style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '42px', minWidth: 'unset', justifyContent: 'center' }}
+                              >
+                                <MapPin className="w-3.5 h-3.5 text-violet-400" />
+                                <span>Search in {selectedCity}</span>
+                              </button>
+                            )}
+
+                            {totalBatches > 1 && !isScanning && (
+                              <button
+                                onClick={handleNextBatch}
+                                className="btn-primary flex items-center gap-1.5"
+                              >
+                                Sweep ({batchIndex + 1}/{totalBatches}) 🔄
+                              </button>
+                            )}
+                          </div>
+                          
+                          {!isScanning && isRegistered && nearbyUsers.length === 0 && (
+                            <button
+                              onClick={handleSubscribeCityAlerts}
+                              className={`btn-alert-subscribe mt-2 ${isSubscribedToCityAlerts ? 'active' : ''}`}
+                              disabled={isSubscribedToCityAlerts}
+                            >
+                              {isSubscribedToCityAlerts ? '🔔 Alerts Active' : `Alert me when ${selectedCity} goes active 🔔`}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      
+                      <span className="text-[10px] text-text-muted flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-text-muted" /> We never share your exact location
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )
               ) : activeTab === 'chats' ? (
                 /* Chats Tab Centerpiece */
                 <div className="w-full flex flex-col p-4 md:p-6 text-left">
