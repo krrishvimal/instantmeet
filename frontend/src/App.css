@@ -365,12 +365,12 @@ input[type="text"]:focus, input[type="number"]:focus, .bar-input:focus {
 /* Remove up/down spin arrows from age input */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+  -webkit-appearance: none !important;
+  margin: 0 !important;
 }
 
 input[type="number"] {
-  -moz-appearance: textfield;
+  -moz-appearance: textfield !important;
 }
 
 /* Premium gradient pill button */
@@ -1872,5 +1872,115 @@ input[type="range"]::-webkit-slider-thumb:hover {
     box-shadow: 0 0 0 0 rgba(168, 85, 247, 0);
   }
 }
+
+/* Custom Select Arrow Styling */
+select.bar-input {
+  height: 42px !important;
+  padding: 10px 36px 10px 14px !important;
+  cursor: pointer !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background: rgba(30, 20, 74, 0.45) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+  color: #fff !important;
+  font-size: 0.9rem !important;
+  outline: none !important;
+  background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 18px !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+select.bar-input:focus {
+  border-color: rgba(168, 85, 247, 0.6) !important;
+  background-color: rgba(30, 20, 74, 0.65) !important;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.2) !important;
+}
+
+/* Premium Left Active Accent Line for Navigation Items */
+.nav-btn {
+  position: relative;
+}
+
+.nav-btn.active {
+  background: rgba(168, 85, 247, 0.1) !important;
+  border-color: rgba(168, 85, 247, 0.3) !important;
+  color: #d8b4fe !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 20px rgba(168, 85, 247, 0.1) !important;
+}
+
+.nav-btn.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 25%;
+  height: 50%;
+  width: 4px;
+  background: linear-gradient(to bottom, #a855f7, #ec4899);
+  border-radius: 99px;
+  box-shadow: 0 0 10px #a855f7;
+}
+
+/* Premium custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.3);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.6);
+}
+
+/* Orb discovery centerpiece cursor and selection prevention */
+.orb-discovery-centerpiece,
+.orb-discovery-centerpiece *,
+.planet-orb-container,
+.planet-orb-container *,
+.planet-orb,
+.planet-orb * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  caret-color: transparent !important;
+  cursor: default !important;
+}
+
+/* Interactive button pointer cursor overrides */
+.orb-discovery-centerpiece button,
+.orb-discovery-centerpiece button *,
+.radar-node-on-orb,
+.radar-node-on-orb * {
+  cursor: pointer !important;
+}
+
+/* Smooth entry animation for radar nodes */
+.radar-node-on-orb {
+  animation: radarNodeFadeIn 0.4s ease-out forwards !important;
+}
+
+@keyframes radarNodeFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+
 
 

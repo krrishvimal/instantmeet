@@ -205,6 +205,8 @@ export default function App() {
   const [stealthMode, setStealthMode] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isSubscribedToCityAlerts, setIsSubscribedToCityAlerts] = useState(false);
+  const [activeInterestFilter, setActiveInterestFilter] = useState<string | null>(null);
+  const [batchIndex, setBatchIndex] = useState(0);
 
   // Toast notification helper - replaces native alert()
   const showToast = useCallback((text: string, type: ToastMessage['type'] = 'info') => {
@@ -546,6 +548,8 @@ export default function App() {
       
       setNearbyUsers(resultsList);
       setIsScanning(false);
+      setBatchIndex(0);
+      setActiveInterestFilter(null);
       
       if (resultsList.length === 0 && !wasGlobal) {
         setShowGlobalFallbackPrompt(true);
@@ -718,6 +722,8 @@ export default function App() {
   useEffect(() => {
     syncLocation();
     setIsSubscribedToCityAlerts(false); // Reset alerts subscription state when city changes
+    setActiveInterestFilter(null);
+    setBatchIndex(0);
   }, [isRegistered, socket, userId, selectedCity]);
 
   // Scroll to chat bottom
@@ -807,6 +813,8 @@ export default function App() {
     setShowGlobalFallbackPrompt(false);
     setIsGlobalSearchActive(false);
     setSelectedNode(null);
+    setBatchIndex(0);
+    setActiveInterestFilter(null);
     socket.emit('search-nearby', { userId, radius: 50 });
   };
 
@@ -817,7 +825,24 @@ export default function App() {
     setShowGlobalFallbackPrompt(false);
     setIsGlobalSearchActive(true);
     setSelectedNode(null);
+    setBatchIndex(0);
+    setActiveInterestFilter(null);
     socket.emit('search-nearby', { userId, radius: 50, global: true });
+  };
+
+  const handleNextBatch = () => {
+    const filteredUsers = nearbyUsers.filter(user => {
+      if (!activeInterestFilter) return true;
+      return user.interests && user.interests.includes(activeInterestFilter);
+    });
+    const totalBatches = Math.ceil(filteredUsers.length / 12);
+    if (totalBatches <= 1) return;
+
+    setIsScanning(true);
+    setTimeout(() => {
+      setBatchIndex((prev) => (prev + 1) % totalBatches);
+      setIsScanning(false);
+    }, 600);
   };
 
   // Send wave / connection request
@@ -1177,6 +1202,13 @@ export default function App() {
       </div>
     );
   };
+
+  const filteredUsers = nearbyUsers.filter(user => {
+    if (!activeInterestFilter) return true;
+    return user.interests && user.interests.includes(activeInterestFilter);
+  });
+  const totalBatches = Math.ceil(filteredUsers.length / 12);
+  const visibleUsersBatch = filteredUsers.slice(batchIndex * 12, (batchIndex + 1) * 12);
 
   return (
     <div className="flex-1 flex flex-col p-4 md:p-8 min-h-screen">
@@ -1599,15 +1631,15 @@ export default function App() {
                     {/* Glowing core sphere */}
                     <div className="planet-orb">
                       <span className="text-4xl font-extrabold font-space">
-                        {isScanning ? <Loader2 className="w-8 h-8 animate-spin" /> : nearbyUsers.length}
+                        {isScanning ? <Loader2 className="w-8 h-8 animate-spin" /> : filteredUsers.length}
                       </span>
                       <span className="text-[11px] uppercase tracking-wider text-violet-300 font-semibold mt-1">people online</span>
                       <span className="text-[9px] text-text-secondary mt-0.5">{isGlobalSearchActive ? 'globally' : `in ${selectedCity}`}</span>
                     </div>
 
                     {/* Real-time matched users positioned around the orb ring */}
-                    {!isScanning && nearbyUsers.slice(0, 12).map((nu, i) => {
-                      const angle = (i * 360) / Math.min(nearbyUsers.length, 12) - 30;
+                    {!isScanning && visibleUsersBatch.map((nu, i) => {
+                      const angle = (i * 360) / (visibleUsersBatch.length || 1) - 30;
                       const radian = (angle * Math.PI) / 180;
                       
                       // Alternate between 3 orbits (0: inner, 1: middle, 2: outer)
@@ -1642,6 +1674,31 @@ export default function App() {
                       );
                     })}
                   </div>
+
+                  {/* Vibe filter pills toggles */}
+                  {isRegistered && nearbyUsers.length > 0 && (
+                    <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto mb-6 px-4">
+                      {selectedTags.map(tag => {
+                        const isActive = activeInterestFilter === tag;
+                        return (
+                          <button
+                            key={tag}
+                            onClick={() => {
+                              setActiveInterestFilter(isActive ? null : tag);
+                              setBatchIndex(0);
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-300 ${
+                              isActive
+                                ? 'bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/30 scale-105'
+                                : 'bg-white/5 border-white/10 text-violet-300 hover:bg-white/10 hover:border-violet-500/30'
+                            }`}
+                          >
+                            #{tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   <div className="flex flex-col items-center gap-4">
                     {selectedNode ? (
@@ -1706,23 +1763,34 @@ export default function App() {
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-3 w-full">
-                        <button
-                          onClick={handleSearch}
-                          disabled={isScanning || !isRegistered}
-                          className="btn-primary"
-                        >
-                          {isScanning ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                              Searching...
-                            </>
-                          ) : (
-                            <>
-                              <Radar className="w-5 h-5 animate-pulse" />
-                              Search People
-                            </>
+                        <div className="flex flex-wrap gap-3 justify-center items-center w-full">
+                          <button
+                            onClick={handleSearch}
+                            disabled={isScanning || !isRegistered}
+                            className="btn-primary"
+                          >
+                            {isScanning ? (
+                              <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                Searching...
+                              </>
+                            ) : (
+                              <>
+                                <Radar className="w-5 h-5 animate-pulse" />
+                                Search People
+                              </>
+                            )}
+                          </button>
+
+                          {totalBatches > 1 && !isScanning && (
+                            <button
+                              onClick={handleNextBatch}
+                              className="btn-primary flex items-center gap-1.5"
+                            >
+                              Sweep ({batchIndex + 1}/{totalBatches}) 🔄
+                            </button>
                           )}
-                        </button>
+                        </div>
                         
                         {!isScanning && isRegistered && nearbyUsers.length === 0 && (
                           <button
