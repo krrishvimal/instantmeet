@@ -1625,7 +1625,7 @@ export default function App() {
           )}
 
           {/* B. Centerpiece View (Radar Orb OR Active Chat Room) */}
-          <div className={`glass-panel flex-1 flex flex-col justify-center items-center min-h-[420px] relative ${activeConnectionId ? 'p-3 md:p-6' : 'p-6'}`}>
+          <div className={`glass-panel flex-1 flex flex-col justify-center items-center min-h-[420px] relative ${activeConnectionId ? 'p-3 md:p-6 chat-active-panel' : 'p-6'}`}>
             
             {errorMsg && (
               <div className="absolute top-4 left-4 right-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
