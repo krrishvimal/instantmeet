@@ -166,6 +166,7 @@ interface Notification {
   type: 'wave' | 'message';
   fromUserId: string;
   fromUserAlias: string;
+  fromUserAvatarUrl?: string;
   message: string;
   timestamp: Date;
   connectionId?: string;
@@ -263,7 +264,7 @@ export default function App() {
 
   // Chat / Connection State
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(() => localStorage.getItem('im_activeConnectionId'));
-  const [activePartner, setActivePartner] = useState<{ id: string; alias: string } | null>(() => {
+  const [activePartner, setActivePartner] = useState<{ id: string; alias: string; avatarUrl?: string } | null>(() => {
     const saved = localStorage.getItem('im_activePartner');
     return saved ? JSON.parse(saved) : null;
   });
@@ -479,6 +480,7 @@ export default function App() {
       connectionId: string;
       fromUserId: string;
       fromUserAlias: string;
+      fromUserAvatarUrl?: string;
       message: string;
     }) => {
       const newNotif: Notification = {
@@ -486,6 +488,7 @@ export default function App() {
         type: 'wave',
         fromUserId: data.fromUserId,
         fromUserAlias: data.fromUserAlias,
+        fromUserAvatarUrl: data.fromUserAvatarUrl,
         message: data.message,
         timestamp: new Date(),
         connectionId: data.connectionId,
@@ -498,9 +501,10 @@ export default function App() {
       connectionId: string;
       partnerAlias: string;
       partnerId: string;
+      partnerAvatarUrl?: string;
     }) => {
       setActiveConnectionId(data.connectionId);
-      setActivePartner({ id: data.partnerId, alias: data.partnerAlias });
+      setActivePartner({ id: data.partnerId, alias: data.partnerAlias, avatarUrl: data.partnerAvatarUrl });
       setChatMessages([]);
       setIncomingRequest(null);
       setNotifications((prev) => prev.filter((n) => n.connectionId !== data.connectionId));
@@ -517,6 +521,7 @@ export default function App() {
             partnerAlias: data.partnerAlias,
             isOnline: true,
             isRevealed: false,
+            avatarUrl: data.partnerAvatarUrl,
             time: 'Just now',
           },
         ];
@@ -535,6 +540,7 @@ export default function App() {
           type: 'message',
           fromUserId: msg.senderId,
           fromUserAlias: partnerAlias,
+          fromUserAvatarUrl: conn?.avatarUrl,
           message: msg.text,
           timestamp: new Date(),
           connectionId: msg.connectionId,
@@ -587,6 +593,29 @@ export default function App() {
       user2: { id: string; realName: string; avatarUrl: string } | null;
     }) => {
       setChatMessages(data.messages);
+      const partnerData = data.user1?.id === userIdRef.current ? data.user2 : data.user1;
+      if (partnerData) {
+        setActiveConnections((prev) =>
+          prev.map((c) => {
+            if (c.id === data.connectionId) {
+              return {
+                ...c,
+                avatarUrl: partnerData.avatarUrl,
+              };
+            }
+            return c;
+          })
+        );
+        setActivePartner((prev) => {
+          if (prev && prev.id === partnerData.id) {
+            return {
+              ...prev,
+              avatarUrl: partnerData.avatarUrl,
+            };
+          }
+          return prev;
+        });
+      }
     });
 
     socketInstance.on('location-synced', (data: { location: Location }) => {
@@ -969,7 +998,7 @@ export default function App() {
       return;
     }
     setActiveConnectionId(conn.id);
-    setActivePartner({ id: conn.partnerId, alias: conn.partnerAlias });
+    setActivePartner({ id: conn.partnerId, alias: conn.partnerAlias, avatarUrl: conn.avatarUrl });
     if (socket) {
       socket.emit('get-chat-history', { connectionId: conn.id });
     }
@@ -1227,7 +1256,7 @@ export default function App() {
             notifications.map((n) => (
               <div key={n.id} className="notif-item">
                 <div className="notif-avatar">
-                  <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${n.fromUserAlias}`} alt="Avatar" className="w-full h-full object-cover" />
+                  <img src={n.fromUserAvatarUrl || `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${n.fromUserAlias}`} alt="Avatar" className="w-full h-full object-cover" />
                 </div>
                 
                 <div className="notif-body">
@@ -1947,7 +1976,7 @@ export default function App() {
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-full border border-violet-500/20 overflow-hidden bg-white/5 flex items-center justify-center relative">
                               <img 
-                                src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${c.partnerAlias}`} 
+                                src={c.avatarUrl || `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${c.partnerAlias}`} 
                                 alt="Avatar" 
                                 className="w-full h-full object-cover" 
                               />
@@ -2330,7 +2359,7 @@ export default function App() {
 
                     <div className="w-9 h-9 rounded-full border border-white/10 overflow-hidden relative bg-white/5 flex-shrink-0">
                       <img 
-                        src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} 
+                        src={activePartner?.avatarUrl || `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} 
                         alt="Avatar" 
                         className="w-full h-full object-cover"
                       />
@@ -2470,7 +2499,7 @@ export default function App() {
                       {/* Left Player: Me */}
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full border border-violet-500/20 overflow-hidden bg-white/5 flex items-center justify-center">
-                          <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`} alt="Me" className="w-full h-full" />
+                          <img src={avatarUrl || `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`} alt="Me" className="w-full h-full" />
                         </div>
                         <div className="text-left">
                           <h5 className="text-xs font-bold text-violet-400">@You (X)</h5>
@@ -2497,7 +2526,7 @@ export default function App() {
                           <span className="text-[10px] text-text-secondary">{gameScores[activePartner?.id || ''] || 0} pts</span>
                         </div>
                         <div className="w-8 h-8 rounded-full border border-cyan-500/20 overflow-hidden bg-white/5 flex items-center justify-center">
-                          <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} alt="Partner" className="w-full h-full" />
+                          <img src={activePartner?.avatarUrl || `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} alt="Partner" className="w-full h-full" />
                         </div>
                       </div>
                     </div>
@@ -2546,7 +2575,7 @@ export default function App() {
                       {/* Left Player: Me */}
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full border border-violet-500/20 overflow-hidden bg-white/5 flex items-center justify-center">
-                          <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`} alt="Me" className="w-full h-full" />
+                          <img src={avatarUrl || `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${alias}`} alt="Me" className="w-full h-full" />
                         </div>
                         <div className="text-left">
                           <h5 className="text-xs font-bold text-violet-400">@You</h5>
@@ -2573,7 +2602,7 @@ export default function App() {
                           <span className="text-[10px] text-text-secondary">{gameScores[activePartner?.id || ''] || 0} pts</span>
                         </div>
                         <div className="w-8 h-8 rounded-full border border-cyan-500/20 overflow-hidden bg-white/5 flex items-center justify-center">
-                          <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} alt="Partner" className="w-full h-full" />
+                          <img src={activePartner?.avatarUrl || `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} alt="Partner" className="w-full h-full" />
                         </div>
                       </div>
                     </div>
@@ -2736,7 +2765,7 @@ export default function App() {
 
                       <div className="connection-card-avatar border-violet-500/20">
                         <img 
-                          src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${c.partnerAlias}`} 
+                          src={c.avatarUrl || `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${c.partnerAlias}`} 
                           alt="Avatar" 
                         />
                         {c.isOnline && <div className="active-dot"></div>}

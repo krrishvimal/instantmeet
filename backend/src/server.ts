@@ -413,6 +413,7 @@ io.on('connection', (socket) => {
         connectionId: connId,
         fromUserId: fromUser.id,
         fromUserAlias: fromUser.alias,
+        fromUserAvatarUrl: fromUser.avatarUrl,
         message: data.message || 'Waved at you! 👋',
       });
     }
@@ -446,6 +447,7 @@ io.on('connection', (socket) => {
         connectionId: conn.id,
         partnerAlias: currentUser.alias,
         partnerId: currentUser.id,
+        partnerAvatarUrl: currentUser.avatarUrl,
       });
     }
 
@@ -454,6 +456,7 @@ io.on('connection', (socket) => {
       connectionId: conn.id,
       partnerAlias: partnerUser.alias,
       partnerId: partnerUser.id,
+      partnerAvatarUrl: partnerUser.avatarUrl,
     });
   });
 
