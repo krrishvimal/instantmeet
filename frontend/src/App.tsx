@@ -2954,6 +2954,14 @@ export default function App() {
                   <p>Accumulating three (3) or more flags/reports from unique users will automatically trigger a permanent ban. Our administrators actively moderate reported content, dismiss reports, or manually issue bans when appropriate.</p>
                 </div>
               </div>
+
+              <div className="modal-list-item">
+                <div className="modal-list-number">5</div>
+                <div className="modal-list-content">
+                  <h5>Indian Law Compliance & Grievance</h5>
+                  <p>In accordance with the Information Technology (IT) Rules, 2021 and DPDP Act, 2023, your city matching details are encrypted and never shared. To report legal content violations or reach our Grievance Officer, contact support@instantmeet.com.</p>
+                </div>
+              </div>
             </div>
 
             <button
