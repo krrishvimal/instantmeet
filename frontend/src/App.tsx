@@ -2229,12 +2229,9 @@ export default function App() {
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <h4 className="font-bold text-white text-xs md:text-sm truncate">@{activePartner?.alias}</h4>
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" title="Online"></div>
-                      </div>
-                      <span className="text-[9px] text-text-muted truncate block max-w-[100px] sm:max-w-none">Secure Anonymous Thread</span>
+                    <div className="min-w-0 flex items-center gap-1.5">
+                      <h4 className="font-bold text-white text-xs md:text-sm truncate">@{activePartner?.alias}</h4>
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" title="Online"></div>
                     </div>
                   </div>
 
