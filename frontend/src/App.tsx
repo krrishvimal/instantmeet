@@ -436,6 +436,7 @@ export default function App() {
       setChatMessages([]);
       setIncomingRequest(null);
       setNotifications((prev) => prev.filter((n) => n.connectionId !== data.connectionId));
+      setShowNotifications(false);
 
       // Add to active connections
       setActiveConnections((prev) => {
@@ -876,6 +877,7 @@ export default function App() {
   // Decline/Ignore incoming connection request
   const handleDeclineRequest = (notificationId: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    setShowNotifications(false);
   };
 
   // Click on a message notification to open chat room
