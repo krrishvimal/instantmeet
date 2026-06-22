@@ -1228,7 +1228,8 @@ export default function App() {
       <div className="absolute bottom-[10%] right-[20%] w-[350px] h-[350px] rounded-full bg-cyan-900/10 blur-[120px] pointer-events-none"></div>
 
       {/* Mobile Top Header */}
-      <header className="mobile-header">
+      {!activeConnectionId && (
+        <header className="mobile-header">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-violet-500 to-fuchsia-500 flex items-center justify-center">
             <Ghost className="w-4 h-4 text-white" />
@@ -1264,9 +1265,11 @@ export default function App() {
           </div>
         </div>
       </header>
+      )}
 
       {/* Mobile Bottom Navigation */}
-      <nav className="mobile-bottom-nav">
+      {!activeConnectionId && (
+        <nav className="mobile-bottom-nav">
         <button 
           onClick={() => { setActiveTab('home'); setActiveConnectionId(null); }}
           className={`mobile-nav-btn ${activeTab === 'home' && !activeConnectionId ? 'active' : ''}`}
@@ -1300,9 +1303,10 @@ export default function App() {
           </button>
         )}
       </nav>
+      )}
 
       {/* Main Masterpiece 3-Column Grid Layout */}
-      <div className="dashboard-container">
+      <div className={`dashboard-container ${activeConnectionId ? 'chat-active-mobile' : ''}`}>
            {/* ================= COLUMN 1: LEFT SIDEBAR ================= */}
         <aside className="sidebar-left">
           <div className="logo-section flex items-center gap-3">
@@ -1621,7 +1625,7 @@ export default function App() {
           )}
 
           {/* B. Centerpiece View (Radar Orb OR Active Chat Room) */}
-          <div className="glass-panel flex-1 flex flex-col justify-center items-center min-h-[420px] p-6 relative">
+          <div className={`glass-panel flex-1 flex flex-col justify-center items-center min-h-[420px] relative ${activeConnectionId ? 'p-3 md:p-6' : 'p-6'}`}>
             
             {errorMsg && (
               <div className="absolute top-4 left-4 right-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
@@ -2204,36 +2208,37 @@ export default function App() {
               <div className="centerpiece-chat-panel">
 
                 {/* Chat Header */}
-                <div className="pb-4 flex items-center justify-between bg-transparent">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden relative bg-white/5">
-                      <img 
-                        src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} 
-                        alt="Avatar" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-white text-sm">@{activePartner?.alias}</h4>
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Online"></div>
-                      </div>
-                      <span className="text-[10px] text-text-muted">Secure Anonymous Thread</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
+                <div className="pb-4 flex items-center justify-between border-b border-white/5 bg-transparent">
+                  <div className="flex items-center gap-2 min-w-0">
                     <button 
                       onClick={() => { 
                         setActiveConnectionId(null); 
                         setActivePartner(null); 
                         setShowChatMenu(false);
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-semibold text-white hover:bg-white/10 transition-all"
+                      className="p-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all flex items-center justify-center flex-shrink-0"
+                      title="Exit Room"
                     >
-                      Exit Room
+                      <ArrowLeft className="w-4 h-4" />
                     </button>
-                    
+
+                    <div className="w-9 h-9 rounded-full border border-white/10 overflow-hidden relative bg-white/5 flex-shrink-0">
+                      <img 
+                        src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${activePartner?.alias}`} 
+                        alt="Avatar" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-bold text-white text-xs md:text-sm truncate">@{activePartner?.alias}</h4>
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" title="Online"></div>
+                      </div>
+                      <span className="text-[9px] text-text-muted truncate block max-w-[100px] sm:max-w-none">Secure Anonymous Thread</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {/* Game selector trigger */}
                     <div className="relative flex items-center">
                       <button
@@ -2241,11 +2246,10 @@ export default function App() {
                           setShowGameSelector(!showGameSelector);
                           setShowChatMenu(false);
                         }}
-                        className="p-2 rounded-lg bg-violet-600/10 border border-violet-500/20 text-violet-400 hover:bg-violet-600/20 hover:text-violet-300 transition-all flex items-center justify-center gap-1.5"
+                        className="p-2 rounded-lg bg-violet-600/10 border border-violet-500/20 text-violet-400 hover:bg-violet-600/20 hover:text-violet-300 transition-all flex items-center justify-center"
                         title="Play Games"
                       >
                         <Gamepad2 className="w-4 h-4" />
-                        <span className="text-[11px] font-bold hidden md:inline">Play</span>
                       </button>
 
                       {showGameSelector && (
@@ -2595,51 +2599,53 @@ export default function App() {
           </div>
 
           {/* C. Recent Connections bottom deck */}
-          <div className="recent-connections-section">
-            <div className="deck-header">
-              <h4>Recent Connections</h4>
-              <button onClick={() => showToast('Connection history is available in the Chats tab.', 'info')} className="text-xs text-violet-400 font-semibold hover:underline">View all</button>
-            </div>
-            
-            <div className="deck-cards">
-              {activeConnections.length === 0 ? (
-                <div className="deck-placeholder">
-                  No active connections yet. Search for users and wave to open a thread!
-                </div>
-              ) : (
-                activeConnections.map((c) => (
-                  <div 
-                    key={c.id}
-                    onClick={() => handleRecentCardClick(c)}
-                    className="glass-panel glass-card connection-card relative group cursor-pointer"
-                  >
-                    {/* Hover-revealed safety button */}
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveSafetyOptionsConnId(c.id);
-                        setSafetyPartnerAlias(c.partnerAlias);
-                      }}
-                      className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all z-10"
-                      title="Safety Options"
-                    >
-                      <ShieldAlert className="w-3.5 h-3.5" />
-                    </button>
-
-                    <div className="connection-card-avatar border-violet-500/20">
-                      <img 
-                        src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${c.partnerAlias}`} 
-                        alt="Avatar" 
-                      />
-                      {c.isOnline && <div className="active-dot"></div>}
-                    </div>
-                    <h5>@{c.partnerAlias}</h5>
-                    <p className="text-[10px] text-text-muted mt-0.5">{c.time}</p>
+          {!activeConnectionId && (
+            <div className="recent-connections-section">
+              <div className="deck-header">
+                <h4>Recent Connections</h4>
+                <button onClick={() => showToast('Connection history is available in the Chats tab.', 'info')} className="text-xs text-violet-400 font-semibold hover:underline">View all</button>
+              </div>
+              
+              <div className="deck-cards">
+                {activeConnections.length === 0 ? (
+                  <div className="deck-placeholder">
+                    No active connections yet. Search for users and wave to open a thread!
                   </div>
-                ))
-              )}
+                ) : (
+                  activeConnections.map((c) => (
+                    <div 
+                      key={c.id}
+                      onClick={() => handleRecentCardClick(c)}
+                      className="glass-panel glass-card connection-card relative group cursor-pointer"
+                    >
+                      {/* Hover-revealed safety button */}
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveSafetyOptionsConnId(c.id);
+                          setSafetyPartnerAlias(c.partnerAlias);
+                        }}
+                        className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all z-10"
+                        title="Safety Options"
+                      >
+                        <ShieldAlert className="w-3.5 h-3.5" />
+                      </button>
+
+                      <div className="connection-card-avatar border-violet-500/20">
+                        <img 
+                          src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${c.partnerAlias}`} 
+                          alt="Avatar" 
+                        />
+                        {c.isOnline && <div className="active-dot"></div>}
+                      </div>
+                      <h5>@{c.partnerAlias}</h5>
+                      <p className="text-[10px] text-text-muted mt-0.5">{c.time}</p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
         </section>
 
