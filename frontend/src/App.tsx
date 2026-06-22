@@ -823,6 +823,7 @@ export default function App() {
   useEffect(() => {
     syncLocation();
     setIsSubscribedToCityAlerts(false); // Reset alerts subscription state when city changes
+    setIsGlobalSearchActive(false); // Reset global search status when city changes
     setActiveInterestFilter(null);
     setBatchIndex(0);
   }, [isRegistered, socket, userId, selectedCity]);
@@ -912,11 +913,12 @@ export default function App() {
     if (!socket || !userId) return;
     setIsScanning(true);
     setShowGlobalFallbackPrompt(false);
-    setIsGlobalSearchActive(false);
+    // Persist global search status if already active, otherwise default to local
+    const isGlobal = isGlobalSearchActive;
     setSelectedNode(null);
     setBatchIndex(0);
     setActiveInterestFilter(null);
-    socket.emit('search-nearby', { userId, radius: 50 });
+    socket.emit('search-nearby', { userId, radius: 50, global: isGlobal });
   };
 
   // Trigger global fallback search
@@ -929,6 +931,18 @@ export default function App() {
     setBatchIndex(0);
     setActiveInterestFilter(null);
     socket.emit('search-nearby', { userId, radius: 50, global: true });
+  };
+
+  // Reset back to local city search
+  const handleResetToLocalSearch = () => {
+    if (!socket || !userId) return;
+    setIsScanning(true);
+    setShowGlobalFallbackPrompt(false);
+    setIsGlobalSearchActive(false);
+    setSelectedNode(null);
+    setBatchIndex(0);
+    setActiveInterestFilter(null);
+    socket.emit('search-nearby', { userId, radius: 50, global: false });
   };
 
   const handleNextBatch = () => {
@@ -1930,6 +1944,17 @@ export default function App() {
                               </>
                             )}
                           </button>
+
+                          {isGlobalSearchActive && !isScanning && (
+                            <button
+                              onClick={handleResetToLocalSearch}
+                              className="change-location-btn py-2 px-3 text-xs"
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '42px', minWidth: 'unset', justifyContent: 'center' }}
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-violet-400" />
+                              <span>Search in {selectedCity}</span>
+                            </button>
+                          )}
 
                           {totalBatches > 1 && !isScanning && (
                             <button
