@@ -300,11 +300,13 @@ export default function App() {
     activeConnectionsCount: number;
     reports: Array<{ userId: string; alias: string; age: number; reports: number }>;
     banned: string[];
+    cities?: { [city: string]: number };
   }>({
     activeUsersCount: 0,
     activeConnectionsCount: 0,
     reports: [],
     banned: [],
+    cities: {},
   });
 
 
@@ -2087,6 +2089,25 @@ export default function App() {
                               </button>
                             </div>
                           ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Active Cities Breakdown */}
+                    <div className="flex flex-col gap-3">
+                      <h4 className="text-xs uppercase font-bold tracking-wider text-text-muted">Active Cities Breakdown</h4>
+                      <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-2">
+                        {!adminStats.cities || Object.keys(adminStats.cities).length === 0 ? (
+                          <p className="text-xs text-text-secondary text-center italic">No active city traffic recorded yet.</p>
+                        ) : (
+                          Object.entries(adminStats.cities)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([city, count]) => (
+                              <div key={city} className="flex justify-between items-center text-xs py-1 border-b border-white/5 last:border-0">
+                                <span className="font-semibold text-white">📍 {city}</span>
+                                <span className="px-2.5 py-0.5 rounded bg-violet-600/20 text-violet-400 font-bold">{count} online</span>
+                              </div>
+                            ))
                         )}
                       </div>
                     </div>
