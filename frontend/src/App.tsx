@@ -1295,8 +1295,8 @@ export default function App() {
     <div className="flex-1 flex flex-col p-4 md:p-8 min-h-screen">
       
       {/* Background Neon Gradients */}
-      <div className="absolute top-[10%] left-[20%] w-[350px] h-[350px] rounded-full bg-indigo-900/10 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[10%] right-[20%] w-[350px] h-[350px] rounded-full bg-cyan-900/10 blur-[120px] pointer-events-none"></div>
+      <div className="absolute rounded-full bg-indigo-900/10 blur-[120px] pointer-events-none" style={{ top: '10%', left: '20%', width: '350px', height: '350px' }}></div>
+      <div className="absolute rounded-full bg-cyan-900/10 blur-[120px] pointer-events-none" style={{ bottom: '10%', right: '20%', width: '350px', height: '350px' }}></div>
 
       {/* Mobile Top Header */}
       {!activeConnectionId && (

@@ -310,3 +310,77 @@ label {
   .md\:p-8 { padding: 2rem; }
   .md\:w-\[380px\] { width: 380px; }
 }
+
+/* -------------------------------------------------------------
+   VANILLA UTILITIES ADDITIONS (To map missing Tailwind classes)
+   ------------------------------------------------------------- */
+
+/* Position Coordinates & Insets */
+.top-4 { top: 1rem !important; }
+.left-4 { left: 1rem !important; }
+.right-4 { right: 1rem !important; }
+.top-3 { top: 0.75rem !important; }
+.top-2 { top: 0.5rem !important; }
+.right-2 { right: 0.5rem !important; }
+.bottom-0 { bottom: 0 !important; }
+.right-0 { right: 0 !important; }
+
+/* Translates & Transforms */
+.left-1\/2 { left: 50% !important; }
+.transform { transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0)) !important; }
+.-translate-x-1\/2 { --tw-translate-x: -50% !important; }
+
+/* Max Heights */
+.max-h-\[380px\] { max-height: 380px !important; }
+.max-h-\[220px\] { max-height: 220px !important; }
+.max-h-\[100px\] { max-height: 100px !important; }
+
+/* Border & Colors */
+.border-2 { border-width: 2px !important; }
+.border-bg-primary { border-color: var(--bg-primary) !important; }
+
+/* Opacities & Group Hovers */
+.opacity-0 { opacity: 0 !important; }
+.group:hover .group-hover\:opacity-100 { opacity: 1 !important; }
+
+/* Toggle Switch Checked States & Pseudo Elements */
+.peer:checked ~ .peer-checked\:bg-violet-600 {
+  background-color: #7c3aed !important;
+}
+.peer:checked ~ .peer-checked\:after\:translate-x-full::after {
+  transform: translateX(16px) !important;
+}
+.peer:checked ~ .peer-checked\:after\:border-white::after {
+  border-color: #ffffff !important;
+}
+.after\:content-\[\'\'\]::after {
+  content: '' !important;
+}
+.after\:absolute::after {
+  position: absolute !important;
+}
+.after\:top-\[2px\]::after {
+  top: 2px !important;
+}
+.after\:left-\[2px\]::after {
+  left: 2px !important;
+}
+.after\:bg-white::after {
+  background-color: #ffffff !important;
+}
+.after\:border-gray-300::after {
+  border: 1px solid #d1d5db !important;
+}
+.after\:rounded-full::after {
+  border-radius: 50% !important;
+}
+.after\:h-4::after {
+  height: 16px !important;
+}
+.after\:w-4::after {
+  width: 16px !important;
+}
+.after\:transition-all::after {
+  transition: all 0.2s ease !important;
+}
+
