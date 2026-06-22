@@ -1712,15 +1712,15 @@ export default function App() {
 
                   <div className="flex flex-col items-center gap-4">
                     {selectedNode ? (
-                      <div className="glass-panel p-4 flex flex-col items-center text-center max-w-xs border-cyan-500/20">
-                        <h4 className="font-bold text-white">@{selectedNode.alias}</h4>
-                        <p className="text-xs text-cyan-400 font-semibold mt-0.5">
+                      <div className="glass-panel p-6 flex flex-col items-center text-center max-w-xs border-cyan-500/20 animate-fadeIn" style={{ animationDuration: '0.3s' }}>
+                        <h4 className="font-extrabold text-white text-lg tracking-tight">@{selectedNode.alias}</h4>
+                        <p className="text-xs text-cyan-400 font-semibold mt-1.5">
                           Online in {selectedNode.city || selectedCity}{selectedNode.age > 0 ? ` • ${selectedNode.age}y/o` : ''}{selectedNode.gender ? ` • ${selectedNode.gender.charAt(0).toUpperCase() + selectedNode.gender.slice(1)}` : ''}
                         </p>
-                        <div className="flex flex-wrap gap-1 justify-center mt-2">
+                        <div className="flex flex-wrap gap-2 justify-center mt-3.5 mb-2">
                           {selectedNode.interests.length > 0 ? (
                             selectedNode.interests.slice(0, 3).map(tag => (
-                              <span key={tag} className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-violet-300">
+                              <span key={tag} className="text-[10px] px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 font-medium tracking-wide">
                                 #{tag}
                               </span>
                             ))
@@ -1733,7 +1733,7 @@ export default function App() {
 
                         <button 
                           onClick={handleSendWave}
-                          className="btn-primary py-2 px-6 mt-4 text-xs"
+                          className="btn-primary py-2.5 px-6 mt-4 text-xs font-bold tracking-wider w-full max-w-[210px] shadow-lg shadow-violet-500/25 transition-all duration-300 hover:scale-[1.03]"
                         >
                           Connect Anonymous Chat
                         </button>
