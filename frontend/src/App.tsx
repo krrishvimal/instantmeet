@@ -1731,7 +1731,7 @@ export default function App() {
                       onClick={() => handleRegisterOrEnter()}
                       className="btn-primary onboarding-gradient-btn"
                     >
-                      <span>Enter Discovery Bubble</span>
+                      <span>Search People</span>
                       <ChevronRight className="w-4 h-4" />
                     </button>
                     <span className="text-[10px] text-text-muted" style={{ textTransform: 'none' }}>
