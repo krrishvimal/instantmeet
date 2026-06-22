@@ -933,6 +933,18 @@ export default function App() {
     socket.emit('search-nearby', { userId, radius: 50, global: true });
   };
 
+  // Reset back to local city search
+  const handleResetToLocalSearch = () => {
+    if (!socket || !userId) return;
+    setIsScanning(true);
+    setShowGlobalFallbackPrompt(false);
+    setIsGlobalSearchActive(false);
+    setSelectedNode(null);
+    setBatchIndex(0);
+    setActiveInterestFilter(null);
+    socket.emit('search-nearby', { userId, radius: 50, global: false });
+  };
+
   const handleNextBatch = () => {
     const filteredUsers = nearbyUsers.filter(user => {
       if (!activeInterestFilter) return true;
@@ -1932,6 +1944,17 @@ export default function App() {
                               </>
                             )}
                           </button>
+
+                          {isGlobalSearchActive && !isScanning && (
+                            <button
+                              onClick={handleResetToLocalSearch}
+                              className="change-location-btn py-2 px-3 text-xs"
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '42px', minWidth: 'unset', justifyContent: 'center' }}
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-violet-400" />
+                              <span>Search in {selectedCity}</span>
+                            </button>
+                          )}
 
                           {totalBatches > 1 && !isScanning && (
                             <button
