@@ -188,21 +188,15 @@ export default function App() {
   }, [activeTab]);
 
   // User Profile Info
-  const [userId, setUserId] = useState<string>(() => localStorage.getItem('im_userId') || '');
-  const [alias, setAlias] = useState(() => localStorage.getItem('im_alias') || '');
+  const [userId, setUserId] = useState<string>('');
+  const [alias, setAlias] = useState('');
   const [realName] = useState('');
-  const [gender, setGender] = useState<'male' | 'female'>(() => (localStorage.getItem('im_gender') as 'male' | 'female') || 'male');
-  const [genderPreference, setGenderPreference] = useState<'male' | 'female' | 'any'>(() => (localStorage.getItem('im_genderPreference') as 'male' | 'female' | 'any') || 'any');
-  const [age, setAge] = useState<number | ''>(() => {
-    const saved = localStorage.getItem('im_age');
-    return saved ? parseInt(saved, 10) : '';
-  });
-  const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem('im_avatarUrl') || '');
-  const [selectedTags, setSelectedTags] = useState<string[]>(() => {
-    const saved = localStorage.getItem('im_selectedTags');
-    return saved ? JSON.parse(saved) : ['Photography', 'Music', 'Coffee'];
-  });
-  const [isRegistered, setIsRegistered] = useState(() => localStorage.getItem('im_isRegistered') === 'true');
+  const [gender, setGender] = useState<'male' | 'female'>('male');
+  const [genderPreference, setGenderPreference] = useState<'male' | 'female' | 'any'>('any');
+  const [age, setAge] = useState<number | ''>('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>(['Photography', 'Music', 'Coffee']);
+  const [isRegistered, setIsRegistered] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
@@ -263,11 +257,8 @@ export default function App() {
   const [brushSize, setBrushSize] = useState<number>(3);
 
   // Chat / Connection State
-  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(() => localStorage.getItem('im_activeConnectionId'));
-  const [activePartner, setActivePartner] = useState<{ id: string; alias: string; avatarUrl?: string } | null>(() => {
-    const saved = localStorage.getItem('im_activePartner');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
+  const [activePartner, setActivePartner] = useState<{ id: string; alias: string; avatarUrl?: string } | null>(null);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [typedMessage, setTypedMessage] = useState('');
 
@@ -322,10 +313,7 @@ export default function App() {
     realName?: string;
     avatarUrl?: string;
     time: string;
-  }[]>(() => {
-    const saved = localStorage.getItem('im_activeConnections');
-    return saved ? JSON.parse(saved) : [];
-  });
+  }[]>([]);
 
   // Keep ref to avoid stale closures in socket event handlers
   const userIdRef = useRef(userId);
@@ -343,59 +331,9 @@ export default function App() {
     activeConnectionsRef.current = activeConnections;
   }, [activeConnections]);
 
-  // Synchronize user profile to localStorage
+  // Reset chat messages when active connection changes
   useEffect(() => {
-    if (userId) localStorage.setItem('im_userId', userId);
-    if (alias) localStorage.setItem('im_alias', alias);
-    localStorage.setItem('im_gender', gender);
-    localStorage.setItem('im_genderPreference', genderPreference);
-    localStorage.setItem('im_age', age ? age.toString() : '');
-    if (avatarUrl) localStorage.setItem('im_avatarUrl', avatarUrl);
-    localStorage.setItem('im_selectedTags', JSON.stringify(selectedTags));
-    localStorage.setItem('im_isRegistered', isRegistered ? 'true' : 'false');
-  }, [userId, alias, gender, genderPreference, age, avatarUrl, selectedTags, isRegistered]);
-
-  // Synchronize active connection states to localStorage
-  useEffect(() => {
-    if (activeConnectionId) {
-      localStorage.setItem('im_activeConnectionId', activeConnectionId);
-    } else {
-      localStorage.removeItem('im_activeConnectionId');
-    }
-  }, [activeConnectionId]);
-
-  useEffect(() => {
-    if (activePartner) {
-      localStorage.setItem('im_activePartner', JSON.stringify(activePartner));
-    } else {
-      localStorage.removeItem('im_activePartner');
-    }
-  }, [activePartner]);
-
-  // Synchronize active connections list to localStorage
-  useEffect(() => {
-    localStorage.setItem('im_activeConnections', JSON.stringify(activeConnections));
-  }, [activeConnections]);
-
-  // Synchronize chat messages history to localStorage
-  useEffect(() => {
-    if (activeConnectionId && chatMessages.length > 0) {
-      localStorage.setItem(`im_chat_messages_${activeConnectionId}`, JSON.stringify(chatMessages));
-    }
-  }, [chatMessages, activeConnectionId]);
-
-  // Load chat messages from localStorage on room load
-  useEffect(() => {
-    if (activeConnectionId) {
-      const saved = localStorage.getItem(`im_chat_messages_${activeConnectionId}`);
-      if (saved) {
-        setChatMessages(JSON.parse(saved));
-      } else {
-        setChatMessages([]);
-      }
-    } else {
-      setChatMessages([]);
-    }
+    setChatMessages([]);
   }, [activeConnectionId]);
 
   // Keep latest registration data in a ref to use during auto-reconnection
@@ -587,7 +525,7 @@ export default function App() {
       setActiveConnectionId(null);
       setActivePartner(null);
       setActiveConnections((prev) => prev.filter((c) => c.id !== data.connectionId));
-      localStorage.removeItem(`im_chat_messages_${data.connectionId}`);
+      // Chat messages are no longer persisted in localStorage
       showToast('The chat has been terminated because the other user disconnected or closed their window.', 'warning');
     });
 
@@ -1195,7 +1133,7 @@ export default function App() {
     if (!socket) return;
     
     // Clear device cached chat messages
-    localStorage.removeItem(`im_chat_messages_${connectionId}`);
+    // Chat messages are no longer persisted in localStorage
     
     if (action === 'delete') {
       if (activeConnectionId === connectionId) {
