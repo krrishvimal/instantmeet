@@ -6,11 +6,16 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { User, Connection, Message, Location, SearchResult } from './types';
 import { calculateDistance, obfuscateDistance, isValidCoordinate } from './services/geoService';
+import { dbService, isFallbackMode } from './services/dbService';
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
+const corsOrigin = process.env.CORS_ORIGIN || '*';
+app.use(cors({
+  origin: corsOrigin,
+  methods: ['GET', 'POST'],
+}));
 app.use(express.json());
 
 // --- Rate Limiter (in-memory, per socket) ---
@@ -97,6 +102,60 @@ const bannedUsers = new Set<string>();
 const adminSockets = new Set<string>();
 const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || 'admin123';
 
+// Bootstrap active database data on startup
+async function bootstrapDatabase() {
+  if (isFallbackMode) return;
+  console.log('[Database] Bootstrapping cache data from Supabase...');
+  try {
+    const activeUsers = await dbService.getActiveUsers();
+    const now = Date.now();
+    const STALE_THRESHOLD_MS = 30 * 60 * 1000;
+    let loadedCount = 0;
+    let staleCount = 0;
+
+    for (const user of activeUsers) {
+      if (now - user.lastActive > STALE_THRESHOLD_MS) {
+        // Delete stale user and their connections on startup
+        await dbService.deleteActiveUser(user.id);
+        staleCount++;
+      } else {
+        // Start offline, will be re-registered on socket connect
+        user.isOnline = false;
+        users.set(user.id, user);
+        await dbService.saveActiveUser(user); // Sync is_online: false to database
+        loadedCount++;
+      }
+    }
+    console.log(`[Database] Loaded ${loadedCount} active user sessions (${staleCount} stale deleted).`);
+
+    const activeConns = await dbService.getActiveConnections();
+    activeConns.forEach((conn) => {
+      connections.set(conn.id, {
+        id: conn.id,
+        user1Id: conn.user1Id,
+        user2Id: conn.user2Id,
+        status: 'anonymous',
+        user1Reveal: false,
+        user2Reveal: false,
+        messages: [],
+        createdAt: Date.now(),
+      });
+    });
+    console.log(`[Database] Loaded ${activeConns.length} connection links.`);
+
+    const banned = await dbService.getBannedUsers();
+    banned.forEach((uId) => bannedUsers.add(uId));
+    console.log(`[Database] Loaded ${banned.length} banned user IDs.`);
+
+    const reports = await dbService.getReportsCount();
+    reports.forEach((count, uId) => reportsCount.set(uId, count));
+    console.log(`[Database] Loaded reports count for ${reports.size} users.`);
+  } catch (e) {
+    console.error('[Database] Bootstrap failed:', e);
+  }
+}
+bootstrapDatabase();
+
 function broadcastAdminStats() {
   const reportsList: Array<{ userId: string; alias: string; age: number; reports: number }> = [];
   reportsCount.forEach((count, uId) => {
@@ -136,7 +195,7 @@ io.on('connection', (socket) => {
   });
 
   // Register or reconnect active user
-  socket.on('register-user', (data: {
+  socket.on('register-user', async (data: {
     userId?: string;
     alias: string;
     realName: string;
@@ -162,7 +221,8 @@ io.on('connection', (socket) => {
     }
 
     // Reject banned users immediately
-    if (bannedUsers.has(userId)) {
+    if (bannedUsers.has(userId) || (await dbService.isUserBanned(userId))) {
+      bannedUsers.add(userId);
       socket.emit('error-msg', 'You have been banned from the platform due to multiple community reports.');
       socket.disconnect(true);
       return;
@@ -205,6 +265,7 @@ io.on('connection', (socket) => {
     };
 
     users.set(userId, newUser);
+    await dbService.saveActiveUser(newUser);
     socket.emit('registration-success', { userId, alias: newUser.alias });
     console.log(`User registered: ${newUser.alias} (${userId}) at location [${newUser.location.lat}, ${newUser.location.lng}]`);
     broadcastAdminStats();
@@ -244,7 +305,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle location update heartbeats
-  socket.on('update-location', (data: { userId: string; location: Location }) => {
+  socket.on('update-location', async (data: { userId: string; location: Location }) => {
     const user = users.get(data.userId);
     if (user && isValidCoordinate(data.location)) {
       user.location = data.location;
@@ -252,6 +313,7 @@ io.on('connection', (socket) => {
       user.socketId = socket.id;
       user.isOnline = true;
       users.set(data.userId, user);
+      await dbService.saveActiveUser(user);
       
       // Notify client that location has synced
       socket.emit('location-synced', { location: user.location });
@@ -357,7 +419,7 @@ io.on('connection', (socket) => {
   });
 
   // Accept wave / connection request
-  socket.on('accept-connection-request', (data: { connectionId: string; userId: string }) => {
+  socket.on('accept-connection-request', async (data: { connectionId: string; userId: string }) => {
     const conn = connections.get(data.connectionId);
     if (!conn) {
       socket.emit('error-msg', 'Connection request not found.');
@@ -376,6 +438,7 @@ io.on('connection', (socket) => {
     // Update connection status
     conn.status = 'anonymous';
     connections.set(data.connectionId, conn);
+    await dbService.saveConnection(data.connectionId, conn.user1Id, conn.user2Id);
 
     // Notify initiator
     if (partnerUser.socketId && partnerUser.isOnline) {
@@ -510,12 +573,13 @@ io.on('connection', (socket) => {
   });
 
   // Handle blocking
-  socket.on('block-user', (data: { connectionId: string; userId: string }) => {
+  socket.on('block-user', async (data: { connectionId: string; userId: string }) => {
     const conn = connections.get(data.connectionId);
     if (!conn) return;
 
     conn.status = 'blocked';
     connections.set(data.connectionId, conn);
+    await dbService.deleteConnection(data.connectionId);
 
     const partnerId = conn.user1Id === data.userId ? conn.user2Id : conn.user1Id;
     const partner = users.get(partnerId);
@@ -529,11 +593,12 @@ io.on('connection', (socket) => {
   });
 
   // Handle silent connection deletion
-  socket.on('delete-connection', (data: { connectionId: string; userId: string }) => {
+  socket.on('delete-connection', async (data: { connectionId: string; userId: string }) => {
     const conn = connections.get(data.connectionId);
     if (!conn) return;
 
     connections.delete(data.connectionId);
+    await dbService.deleteConnection(data.connectionId);
 
     const partnerId = conn.user1Id === data.userId ? conn.user2Id : conn.user1Id;
     const partner = users.get(partnerId);
@@ -545,16 +610,20 @@ io.on('connection', (socket) => {
   });
 
   // Handle reporting a user
-  socket.on('report-user', (data: { connectionId: string; reporterId: string; targetUserId: string }) => {
+  socket.on('report-user', async (data: { connectionId: string; reporterId: string; targetUserId: string }) => {
     const conn = connections.get(data.connectionId);
     if (conn) {
       connections.delete(data.connectionId);
+      await dbService.deleteConnection(data.connectionId);
       
       const targetUser = users.get(data.targetUserId);
       if (targetUser && targetUser.socketId && targetUser.isOnline) {
         io.to(targetUser.socketId).emit('connection-blocked', { connectionId: data.connectionId });
       }
     }
+
+    // Save report to database
+    await dbService.saveReport(data.reporterId, data.targetUserId, data.connectionId);
 
     // Increment reports count
     const count = (reportsCount.get(data.targetUserId) || 0) + 1;
@@ -564,15 +633,17 @@ io.on('connection', (socket) => {
     // If threshold reached (>= 3 reports), ban user immediately
     if (count >= 3) {
       bannedUsers.add(data.targetUserId);
+      await dbService.saveBannedUser(data.targetUserId);
       console.log(`[BAN] Banning user ${data.targetUserId} due to multiple reports.`);
 
       const targetUser = users.get(data.targetUserId);
       if (targetUser) {
         const targetSocketId = targetUser.socketId;
         users.delete(data.targetUserId);
+        await dbService.deleteActiveUser(data.targetUserId);
 
         // Delete all active connections of the banned user
-        connections.forEach((c, cId) => {
+        for (const [cId, c] of connections.entries()) {
           if (c.user1Id === data.targetUserId || c.user2Id === data.targetUserId) {
             const partnerId = c.user1Id === data.targetUserId ? c.user2Id : c.user1Id;
             const partner = users.get(partnerId);
@@ -580,8 +651,9 @@ io.on('connection', (socket) => {
               io.to(partner.socketId).emit('connection-blocked', { connectionId: cId });
             }
             connections.delete(cId);
+            await dbService.deleteConnection(cId);
           }
-        });
+        }
 
         if (targetSocketId) {
           const targetSocket = io.sockets.sockets.get(targetSocketId);
@@ -630,22 +702,24 @@ io.on('connection', (socket) => {
   });
 
   // Admin manually ban user
-  socket.on('admin-ban-user', (data: { targetUserId: string }) => {
+  socket.on('admin-ban-user', async (data: { targetUserId: string }) => {
     if (!adminSockets.has(socket.id)) {
       socket.emit('error-msg', 'Unauthorized.');
       return;
     }
 
     bannedUsers.add(data.targetUserId);
+    await dbService.saveBannedUser(data.targetUserId);
     console.log(`[ADMIN ACTION] Admin banned user ${data.targetUserId}`);
 
     const targetUser = users.get(data.targetUserId);
     if (targetUser) {
       const targetSocketId = targetUser.socketId;
       users.delete(data.targetUserId);
+      await dbService.deleteActiveUser(data.targetUserId);
 
       // Clean up connections
-      connections.forEach((c, cId) => {
+      for (const [cId, c] of connections.entries()) {
         if (c.user1Id === data.targetUserId || c.user2Id === data.targetUserId) {
           const partnerId = c.user1Id === data.targetUserId ? c.user2Id : c.user1Id;
           const partner = users.get(partnerId);
@@ -653,8 +727,9 @@ io.on('connection', (socket) => {
             io.to(partner.socketId).emit('connection-blocked', { connectionId: cId });
           }
           connections.delete(cId);
+          await dbService.deleteConnection(cId);
         }
-      });
+      }
 
       if (targetSocketId) {
         const targetSocket = io.sockets.sockets.get(targetSocketId);
@@ -669,31 +744,33 @@ io.on('connection', (socket) => {
   });
 
   // Admin dismiss reports
-  socket.on('admin-dismiss-reports', (data: { targetUserId: string }) => {
+  socket.on('admin-dismiss-reports', async (data: { targetUserId: string }) => {
     if (!adminSockets.has(socket.id)) {
       socket.emit('error-msg', 'Unauthorized.');
       return;
     }
 
     reportsCount.delete(data.targetUserId);
+    await dbService.dismissReports(data.targetUserId);
     console.log(`[ADMIN ACTION] Admin dismissed reports for user ${data.targetUserId}`);
     broadcastAdminStats();
   });
 
   // Admin unban user
-  socket.on('admin-unban-user', (data: { targetUserId: string }) => {
+  socket.on('admin-unban-user', async (data: { targetUserId: string }) => {
     if (!adminSockets.has(socket.id)) {
       socket.emit('error-msg', 'Unauthorized.');
       return;
     }
 
     bannedUsers.delete(data.targetUserId);
+    await dbService.removeBannedUser(data.targetUserId);
     console.log(`[ADMIN ACTION] Admin unbanned user ${data.targetUserId}`);
     broadcastAdminStats();
   });
 
   // Client disconnected
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log(`Socket disconnected: ${socket.id}`);
     adminSockets.delete(socket.id);
     
@@ -712,12 +789,13 @@ io.on('connection', (socket) => {
       if (user) {
         user.isOnline = false;
         users.set(uId, user);
+        await dbService.saveActiveUser(user);
       }
       
       console.log(`User disconnected, scheduled cleanup in 15s for: ${user?.alias} (${uId})`);
       broadcastAdminStats();
       
-      const timeout = setTimeout(() => {
+      const timeout = setTimeout(async () => {
         disconnectTimeouts.delete(uId);
         
         const userAlias = users.get(uId)?.alias;
@@ -725,6 +803,7 @@ io.on('connection', (socket) => {
         
         // 1. Delete user profile completely
         users.delete(uId);
+        await dbService.deleteActiveUser(uId);
   
         // 2. Clean up all active connections involving this user
         const connectionsToDelete: string[] = [];
@@ -742,9 +821,10 @@ io.on('connection', (socket) => {
         });
   
         // 3. Erase connections and messages history completely
-        connectionsToDelete.forEach((connId) => {
+        for (const connId of connectionsToDelete) {
           connections.delete(connId);
-        });
+          await dbService.deleteConnection(connId);
+        }
         console.log(`Cleanup complete for user ${userAlias}. Deleted ${connectionsToDelete.length} connections.`);
         broadcastAdminStats();
       }, 15000);
@@ -1002,20 +1082,41 @@ io.on('connection', (socket) => {
 const STALE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const STALE_THRESHOLD_MS = 30 * 60 * 1000;
 
-setInterval(() => {
+setInterval(async () => {
   const now = Date.now();
   let cleanedCount = 0;
 
-  users.forEach((user, userId) => {
+  for (const [userId, user] of users.entries()) {
     if (now - user.lastActive > STALE_THRESHOLD_MS) {
       user.isOnline = false;
       users.delete(userId);
+      await dbService.deleteActiveUser(userId);
+
+      // Clean up connections involving this stale user
+      const connectionsToDelete: string[] = [];
+      connections.forEach((conn, connId) => {
+        if (conn.user1Id === userId || conn.user2Id === userId) {
+          const partnerId = conn.user1Id === userId ? conn.user2Id : conn.user1Id;
+          const partner = users.get(partnerId);
+          if (partner && partner.socketId && partner.isOnline) {
+            io.to(partner.socketId).emit('connection-blocked', { connectionId: connId });
+          }
+          connectionsToDelete.push(connId);
+        }
+      });
+
+      for (const connId of connectionsToDelete) {
+        connections.delete(connId);
+        await dbService.deleteConnection(connId);
+      }
+
       cleanedCount++;
     }
-  });
+  }
 
   if (cleanedCount > 0) {
-    console.log(`[Stale Cleanup] Removed ${cleanedCount} inactive user(s).`);
+    console.log(`[Stale Cleanup] Removed ${cleanedCount} inactive user(s) and synced to database.`);
+    broadcastAdminStats();
   }
 }, STALE_CHECK_INTERVAL_MS);
 
