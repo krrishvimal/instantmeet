@@ -1738,9 +1738,20 @@ export default function App() {
                     <button 
                       onClick={() => handleRegisterOrEnter()}
                       className="btn-primary onboarding-gradient-btn"
+                      disabled={!isConnected}
+                      style={{ opacity: isConnected ? 1 : 0.7, cursor: isConnected ? 'pointer' : 'not-allowed' }}
                     >
-                      <span>Search People</span>
-                      <ChevronRight className="w-4 h-4" />
+                      {!isConnected ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Connecting to Server...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Search People</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </>
+                      )}
                     </button>
                     <span className="text-[10px] text-text-muted" style={{ textTransform: 'none' }}>
                       By entering, you agree to our{' '}
