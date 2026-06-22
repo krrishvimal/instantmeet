@@ -205,6 +205,7 @@ export default function App() {
   const [newTagInput, setNewTagInput] = useState('');
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Discovery & Privacy Settings (wired to server)
   const [visibleOnRadar, setVisibleOnRadar] = useState(true);
@@ -1680,7 +1681,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="onboarding-action-group">
+                  <div className="onboarding-action-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
                     <button 
                       onClick={() => handleRegisterOrEnter()}
                       className="btn-primary onboarding-gradient-btn"
@@ -1688,6 +1689,16 @@ export default function App() {
                       <span>Enter Discovery Bubble</span>
                       <ChevronRight className="w-4 h-4" />
                     </button>
+                    <span className="text-[10px] text-text-muted" style={{ textTransform: 'none' }}>
+                      By entering, you agree to our{' '}
+                      <button 
+                        onClick={() => setShowTermsModal(true)} 
+                        className="text-violet-400 font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer"
+                        style={{ fontSize: '10px', textTransform: 'none' }}
+                      >
+                        Terms of Service & Privacy Policy
+                      </button>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -2245,6 +2256,16 @@ export default function App() {
                     >
                       Save Preferences
                     </button>
+
+                    <div className="flex justify-center mt-1">
+                      <button 
+                        onClick={() => setShowTermsModal(true)}
+                        className="text-xs text-violet-400 font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer"
+                        style={{ textTransform: 'none' }}
+                      >
+                        Terms of Service & Privacy Policy
+                      </button>
+                    </div>
 
                     {!isAdmin && (
                       <>
@@ -2865,6 +2886,66 @@ export default function App() {
               className="modal-close-btn"
             >
               Got it, thanks!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Terms of Service & Privacy Policy Modal */}
+      {showTermsModal && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <div className="modal-header-icon">
+                <ShieldAlert className="w-5 h-5 text-violet-400" />
+              </div>
+              <div className="modal-header-info">
+                <h4>Terms of Service & Privacy Policy</h4>
+                <p>User-Generated Content (UGC) Guidelines</p>
+              </div>
+            </div>
+
+            <div className="modal-divider" />
+
+            <div className="modal-list" style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '6px' }}>
+              <div className="modal-list-item">
+                <div className="modal-list-number">1</div>
+                <div className="modal-list-content">
+                  <h5>Zero Tolerance for Abuse</h5>
+                  <p>InstantMeet enforces a strict zero-tolerance policy towards objectionable content or abusive/harassing behaviors. Bullying, hate speech, harassment, threats, explicit sexuality, or graphical violence will result in an immediate and permanent account suspension.</p>
+                </div>
+              </div>
+
+              <div className="modal-list-item">
+                <div className="modal-list-number">2</div>
+                <div className="modal-list-content">
+                  <h5>Community Guidelines</h5>
+                  <p>Your anonymity is protected, but anonymity is not a shield for misconduct. All users must communicate respectfully. Any fraudulent activity, scamming, or violation of safety guidelines is prohibited.</p>
+                </div>
+              </div>
+
+              <div className="modal-list-item">
+                <div className="modal-list-number">3</div>
+                <div className="modal-list-content">
+                  <h5>Report & Block Actions</h5>
+                  <p>We provide instant safety controls. You can tap the Shield/Safety icon at any time on a user's profile card or inside a chat room to delete the connection, block them, or report their behavior immediately.</p>
+                </div>
+              </div>
+
+              <div className="modal-list-item">
+                <div className="modal-list-number">4</div>
+                <div className="modal-list-content">
+                  <h5>Moderation & Enforcement</h5>
+                  <p>Accumulating three (3) or more flags/reports from unique users will automatically trigger a permanent ban. Our administrators actively moderate reported content, dismiss reports, or manually issue bans when appropriate.</p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowTermsModal(false)}
+              className="modal-close-btn"
+            >
+              I Accept & Agree
             </button>
           </div>
         </div>
