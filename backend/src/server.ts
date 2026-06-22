@@ -219,7 +219,7 @@ io.on('connection', (socket) => {
     isVisible?: boolean;
     stealthMode?: boolean;
   }) => {
-    if (rateLimitCheck(socket.id, 'register-user', 5)) { socket.emit('error-msg', 'Rate limit exceeded. Please slow down.'); return; }
+    if (rateLimitCheck(socket.id, 'register-user', 15)) { socket.emit('error-msg', 'Rate limit exceeded. Please slow down.'); return; }
 
     const userId = data.userId || `user-${Math.random().toString(36).substring(2, 9)}`;
     
@@ -332,7 +332,7 @@ io.on('connection', (socket) => {
 
   // Search for nearby users (dynamic radius from client, max 50 km)
   socket.on('search-nearby', (data: { userId: string; radius?: number; global?: boolean }) => {
-    if (rateLimitCheck(socket.id, 'search-nearby', 20)) { socket.emit('error-msg', 'Rate limit exceeded. Please slow down.'); return; }
+    if (rateLimitCheck(socket.id, 'search-nearby', 40)) { socket.emit('error-msg', 'Rate limit exceeded. Please slow down.'); return; }
 
     const currentUser = users.get(data.userId);
     if (!currentUser) {
