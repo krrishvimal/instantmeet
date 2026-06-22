@@ -1843,7 +1843,15 @@ export default function App() {
 
                   <div className="flex flex-col items-center gap-4">
                     {selectedNode ? (
-                      <div className="glass-panel p-6 flex flex-col items-center text-center max-w-xs border-cyan-500/20 animate-fadeIn" style={{ animationDuration: '0.3s' }}>
+                      <div className="glass-panel p-6 flex flex-col items-center text-center max-w-xs border-cyan-500/20 animate-fadeIn" style={{ animationDuration: '0.3s', position: 'relative' }}>
+                        <button
+                          onClick={() => setSelectedNode(null)}
+                          className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-text-secondary hover:text-white hover:bg-white/10 transition-all flex items-center justify-center cursor-pointer z-10"
+                          style={{ position: 'absolute', top: '12px', right: '12px' }}
+                          title="Close Details"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                         <h4 className="font-extrabold text-white text-lg tracking-tight">@{selectedNode.alias}</h4>
                         <p className="text-xs text-cyan-400 font-semibold mt-1.5">
                           Online in {selectedNode.city || selectedCity}{selectedNode.age > 0 ? ` • ${selectedNode.age}y/o` : ''}{selectedNode.gender ? ` • ${selectedNode.gender.charAt(0).toUpperCase() + selectedNode.gender.slice(1)}` : ''}
