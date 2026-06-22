@@ -1787,43 +1787,85 @@ export default function App() {
               activeTab === 'home' ? (
                 !isRegistered ? (
                   /* Premium Welcome / Radar Standby Panel */
-                  <div className="flex flex-col items-center justify-center text-center p-8 md:p-12 max-w-xl mx-auto animate-fadeIn w-full" style={{ animationDuration: '0.4s', gap: '28px' }}>
-                    <div className="relative flex items-center justify-center">
-                      {/* Premium Rotating Radar Scope Mockup */}
-                      <div className="relative w-32 h-32 rounded-full border border-violet-500/25 bg-violet-950/20 flex items-center justify-center overflow-hidden shadow-2xl shadow-violet-500/10">
-                        {/* Concentric helper rings */}
-                        <div className="absolute w-22 h-22 rounded-full border border-violet-500/15"></div>
-                        <div className="absolute w-12 h-12 rounded-full border border-violet-500/10"></div>
+                  <div className="flex flex-col items-center justify-center text-center p-6 md:p-10 max-w-lg mx-auto animate-fadeIn w-full" style={{ animationDuration: '0.4s' }}>
+                    
+                    {/* Rotating Radar Container */}
+                    <div className="flex items-center justify-center mb-6">
+                      <div 
+                        style={{ 
+                          width: '110px', 
+                          height: '110px', 
+                          border: '1px solid rgba(139, 92, 246, 0.3)', 
+                          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, rgba(15, 10, 40, 0.8) 100%)', 
+                          borderRadius: '50%', 
+                          position: 'relative', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          overflow: 'hidden',
+                          boxShadow: '0 0 30px rgba(139, 92, 246, 0.15)'
+                        }}
+                      >
+                        {/* Concentric rings */}
+                        <div className="absolute w-20 h-20 rounded-full" style={{ border: '1px dashed rgba(139, 92, 246, 0.15)' }}></div>
+                        <div className="absolute w-10 h-10 rounded-full" style={{ border: '1px solid rgba(139, 92, 246, 0.1)' }}></div>
                         
-                        {/* Conic scanning sweep line */}
+                        {/* Radar Sweep Line */}
                         <div 
                           className="absolute inset-0 animate-spin" 
                           style={{ 
-                            animationDuration: '5s', 
-                            background: 'conic-gradient(from 180deg at 50% 50%, transparent 60%, rgba(34, 211, 238, 0.22) 100%)',
-                            borderRadius: '50%'
+                            animationDuration: '3s', 
+                            transformOrigin: 'center center'
                           }}
-                        ></div>
+                        >
+                          <div 
+                            style={{ 
+                              position: 'absolute',
+                              top: '0',
+                              left: '50%',
+                              width: '2px',
+                              height: '50%',
+                              background: 'linear-gradient(to top, rgba(34, 211, 238, 0.05) 0%, rgba(34, 211, 238, 0.8) 100%)',
+                              boxShadow: '0 0 10px rgba(34, 211, 238, 0.5)'
+                            }}
+                          ></div>
+                          {/* Fading trail quadrant */}
+                          <div 
+                            style={{
+                              position: 'absolute',
+                              inset: '0',
+                              background: 'conic-gradient(from 180deg at 50% 50%, transparent 75%, rgba(34, 211, 238, 0.12) 100%)',
+                              borderRadius: '50%'
+                            }}
+                          ></div>
+                        </div>
                         
-                        {/* Glowing centerpiece beacon node */}
-                        <div className="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.85)] animate-pulse z-10"></div>
+                        {/* Center Beacon */}
+                        <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse z-10"></div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-[0.25em] text-cyan-400 font-extrabold bg-cyan-950/40 border border-cyan-500/20 px-3.5 py-1 rounded-full">
+                    {/* Badge */}
+                    <div className="mb-3">
+                      <span className="text-[10px] uppercase tracking-[0.25em] text-cyan-400 font-bold bg-cyan-950/40 border border-cyan-500/20 px-3 py-1 rounded-full">
                         radar system
                       </span>
-                      <h3 className="text-2xl font-extrabold font-space text-white tracking-tight mt-1">Standby Mode</h3>
                     </div>
+
+                    {/* Title */}
+                    <h3 className="text-2xl font-extrabold font-space text-white tracking-tight mb-3">
+                      Standby Mode
+                    </h3>
                     
-                    <p className="text-xs text-text-secondary leading-relaxed max-w-xs mx-auto -mt-2">
+                    {/* Description */}
+                    <p className="text-xs leading-relaxed max-w-sm mx-auto mb-8" style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '13px' }}>
                       InstantMeet connects you anonymously and securely in real-time. Complete your anonymous profile details above and click <strong className="text-violet-300 font-semibold">Search People</strong> to activate the scanner.
                     </p>
 
-                    <div className="flex items-center gap-2.5 px-5 py-3 rounded-full bg-white/5 border border-white/10 text-[11px] font-medium tracking-wide">
+                    {/* Status Pill */}
+                    <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold tracking-wide shadow-inner">
                       <div className={`w-2 h-2 rounded-full ${selectedCity ? 'bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]'}`}></div>
-                      <span className={selectedCity ? 'text-cyan-300' : 'text-amber-300'}>
+                      <span className={selectedCity ? 'text-cyan-300' : 'text-amber-300'} style={{ fontSize: '12px' }}>
                         {selectedCity ? `Scanner ready to search in ${selectedCity}` : 'Please select your city above to sync radar'}
                       </span>
                     </div>
