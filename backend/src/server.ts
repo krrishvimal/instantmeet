@@ -109,7 +109,7 @@ async function bootstrapDatabase() {
   try {
     const activeUsers = await dbService.getActiveUsers();
     const now = Date.now();
-    const STALE_THRESHOLD_MS = 30 * 60 * 1000;
+    const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes - users get fresh IDs each session
     let loadedCount = 0;
     let staleCount = 0;
 

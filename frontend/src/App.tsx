@@ -582,8 +582,11 @@ export default function App() {
     });
 
     socketInstance.on('nearby-results', (data: SearchResult[] | { results: SearchResult[]; isGlobal?: boolean }) => {
-      const resultsList = Array.isArray(data) ? data : data.results;
+      const rawList = Array.isArray(data) ? data : data.results;
       const wasGlobal = Array.isArray(data) ? false : !!data.isGlobal;
+      
+      // Safety: filter out self (handles multi-tab or userId regeneration edge cases)
+      const resultsList = rawList.filter(u => u.userId !== userIdRef.current);
       
       setNearbyUsers(resultsList);
       setIsScanning(false);
