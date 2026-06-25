@@ -219,6 +219,18 @@ function broadcastAdminStats() {
 io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
+  // Update user's lastActive timestamp on any incoming socket event to prevent cleanup timeout
+  socket.use((packet, next) => {
+    const uId = (socket as any).userId;
+    if (uId) {
+      const user = users.get(uId);
+      if (user) {
+        user.lastActive = Date.now();
+      }
+    }
+    next();
+  });
+
   // Clean up rate-limit data when this socket disconnects
   socket.on('disconnect', () => {
     rateLimitStore.delete(socket.id);
@@ -242,6 +254,7 @@ io.on('connection', (socket) => {
     if (rateLimitCheck(socket.id, 'register-user', 15)) { socket.emit('error-msg', 'Rate limit exceeded. Please slow down.'); return; }
 
     const userId = data.userId || `user-${Math.random().toString(36).substring(2, 9)}`;
+    (socket as any).userId = userId;
     
     // Cancel any pending disconnect cleanup if user reconnects
     if (disconnectTimeouts.has(userId)) {
