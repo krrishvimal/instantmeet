@@ -1283,14 +1283,14 @@ export default function App() {
   const visibleUsersBatch = filteredUsers.slice(batchIndex * 12, (batchIndex + 1) * 12);
 
   return (
-    <div className="flex-1 flex flex-col p-4 md:p-8 min-h-screen">
+    <div className={`flex-1 flex flex-col min-h-screen ${isRegistered && activeTab === 'home' && !activeConnectionId ? 'p-2 md:p-4' : 'p-4 md:p-8'}`}>
       
       {/* Background Neon Gradients */}
       <div className="absolute rounded-full bg-indigo-900/10 blur-[120px] pointer-events-none" style={{ top: '10%', left: '20%', width: '350px', height: '350px' }}></div>
       <div className="absolute rounded-full bg-cyan-900/10 blur-[120px] pointer-events-none" style={{ bottom: '10%', right: '20%', width: '350px', height: '350px' }}></div>
 
       {/* Mobile Top Header */}
-      {!activeConnectionId && (
+      {!activeConnectionId && !(isRegistered && activeTab === 'home') && (
         <header className="mobile-header">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-violet-500 to-fuchsia-500 flex items-center justify-center">
@@ -1330,7 +1330,7 @@ export default function App() {
       )}
 
       {/* Mobile Bottom Navigation */}
-      {!activeConnectionId && (
+      {!activeConnectionId && !(isRegistered && activeTab === 'home') && (
         <nav className="mobile-bottom-nav">
         <button 
           onClick={() => { setActiveTab('home'); setActiveConnectionId(null); }}
@@ -1368,9 +1368,10 @@ export default function App() {
       )}
 
       {/* Main Masterpiece 3-Column Grid Layout */}
-      <div className={`dashboard-container ${activeConnectionId ? 'chat-active-mobile' : ''}`}>
+      <div className={`dashboard-container ${activeConnectionId ? 'chat-active-mobile' : ''} ${isRegistered && activeTab === 'home' && !activeConnectionId ? 'full-radar-layout' : ''}`}>
            {/* ================= COLUMN 1: LEFT SIDEBAR ================= */}
-        <aside className="sidebar-left">
+        {!(isRegistered && activeTab === 'home' && !activeConnectionId) && (
+          <aside className="sidebar-left">
           <div className="logo-section flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
               <Ghost className="w-5 h-5 text-white" />
@@ -1458,6 +1459,7 @@ export default function App() {
             © {new Date().getFullYear()} InstantMeet
           </div>
         </aside>
+        )}
 
         {/* ================= COLUMN 2: CENTER WORKSPACE ================= */}
         <section className="flex-1 flex flex-col gap-6">
@@ -2883,7 +2885,8 @@ export default function App() {
         </section>
 
         {/* ================= COLUMN 3: RIGHT SIDEBAR ================= */}
-        <aside className="sidebar-right">
+        {!(isRegistered && activeTab === 'home' && !activeConnectionId) && (
+          <aside className="sidebar-right">
           <div className="right-header">
             {/* Server status dot */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-semibold">
@@ -2971,6 +2974,7 @@ export default function App() {
 
 
         </aside>
+        )}
 
       </div>
 
