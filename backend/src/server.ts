@@ -102,6 +102,26 @@ const bannedUsers = new Set<string>();
 const adminSockets = new Set<string>();
 const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || 'admin123';
 
+// Queue of pending database operations per resource ID (userId, connectionId, etc.)
+// to guarantee in-order execution of writes/deletes and prevent race conditions.
+const dbQueue = new Map<string, Promise<any>>();
+
+function queueDbOperation(id: string, op: () => Promise<any>): Promise<any> {
+  const current = dbQueue.get(id) || Promise.resolve();
+  const next = current
+    .then(op)
+    .catch((err) => {
+      console.error(`[Database Queue Error] Operation failed for ID: ${id}:`, err);
+    })
+    .finally(() => {
+      if (dbQueue.get(id) === next) {
+        dbQueue.delete(id);
+      }
+    });
+  dbQueue.set(id, next);
+  return next;
+}
+
 // Bootstrap active database data on startup
 async function bootstrapDatabase() {
   if (isFallbackMode) return;
@@ -271,8 +291,8 @@ io.on('connection', (socket) => {
     users.set(userId, newUser);
     socket.emit('registration-success', { userId, alias: newUser.alias });
     console.log(`User registered: ${newUser.alias} (${userId}) at location [${newUser.location.lat}, ${newUser.location.lng}]`);
-    // Fire-and-forget DB save (non-blocking)
-    dbService.saveActiveUser(newUser).catch(() => {});
+    // Queue database save to guarantee correct sequence & logging
+    queueDbOperation(userId, () => dbService.saveActiveUser(newUser));
     broadcastAdminStats();
 
     // Notify users who subscribed to alerts for this city
@@ -322,8 +342,8 @@ io.on('connection', (socket) => {
       // Notify client that location has synced immediately
       socket.emit('location-synced', { location: user.location });
 
-      // Non-blocking database sync
-      dbService.saveActiveUser(user).catch(() => {});
+      // Queue database sync to guarantee correct sequence & logging
+      queueDbOperation(data.userId, () => dbService.saveActiveUser(user));
     }
   });
 
@@ -465,8 +485,8 @@ io.on('connection', (socket) => {
       partnerAvatarUrl: partnerUser.avatarUrl,
     });
 
-    // Save connection to database in background
-    dbService.saveConnection(data.connectionId, conn.user1Id, conn.user2Id).catch(() => {});
+    // Queue connection save to guarantee correct sequence & logging
+    queueDbOperation(data.connectionId, () => dbService.saveConnection(data.connectionId, conn.user1Id, conn.user2Id));
   });
 
   // Handle live chat messages
@@ -602,8 +622,8 @@ io.on('connection', (socket) => {
     }
     broadcastAdminStats();
 
-    // Async database cleanup
-    dbService.deleteConnection(data.connectionId).catch(() => {});
+    // Queue connection deletion
+    queueDbOperation(data.connectionId, () => dbService.deleteConnection(data.connectionId));
   });
 
   // Handle silent connection deletion
@@ -621,8 +641,8 @@ io.on('connection', (socket) => {
     }
     broadcastAdminStats();
 
-    // Async database cleanup
-    dbService.deleteConnection(data.connectionId).catch(() => {});
+    // Queue connection deletion
+    queueDbOperation(data.connectionId, () => dbService.deleteConnection(data.connectionId));
   });
 
   // Handle reporting a user
@@ -630,7 +650,7 @@ io.on('connection', (socket) => {
     const conn = connections.get(data.connectionId);
     if (conn) {
       connections.delete(data.connectionId);
-      dbService.deleteConnection(data.connectionId).catch(() => {});
+      queueDbOperation(data.connectionId, () => dbService.deleteConnection(data.connectionId));
       
       const targetUser = users.get(data.targetUserId);
       if (targetUser && targetUser.socketId && targetUser.isOnline) {
@@ -639,7 +659,7 @@ io.on('connection', (socket) => {
     }
 
     // Save report to database (non-blocking)
-    dbService.saveReport(data.reporterId, data.targetUserId, data.connectionId).catch(() => {});
+    queueDbOperation(`report-${data.targetUserId}-${Date.now()}`, () => dbService.saveReport(data.reporterId, data.targetUserId, data.connectionId));
 
     // Increment reports count
     const count = (reportsCount.get(data.targetUserId) || 0) + 1;
@@ -649,14 +669,14 @@ io.on('connection', (socket) => {
     // If threshold reached (>= 3 reports), ban user immediately
     if (count >= 3) {
       bannedUsers.add(data.targetUserId);
-      dbService.saveBannedUser(data.targetUserId).catch(() => {});
+      queueDbOperation(data.targetUserId, () => dbService.saveBannedUser(data.targetUserId));
       console.log(`[BAN] Banning user ${data.targetUserId} due to multiple reports.`);
 
       const targetUser = users.get(data.targetUserId);
       if (targetUser) {
         const targetSocketId = targetUser.socketId;
         users.delete(data.targetUserId);
-        dbService.deleteActiveUser(data.targetUserId).catch(() => {});
+        queueDbOperation(data.targetUserId, () => dbService.deleteActiveUser(data.targetUserId));
 
         // Delete all active connections of the banned user
         for (const [cId, c] of connections.entries()) {
@@ -667,7 +687,7 @@ io.on('connection', (socket) => {
               io.to(partner.socketId).emit('connection-blocked', { connectionId: cId });
             }
             connections.delete(cId);
-            dbService.deleteConnection(cId).catch(() => {});
+            queueDbOperation(cId, () => dbService.deleteConnection(cId));
           }
         }
 
@@ -786,7 +806,7 @@ io.on('connection', (socket) => {
   });
 
   // Client disconnected
-  socket.on('disconnect', async () => {
+  socket.on('disconnect', () => {
     console.log(`Socket disconnected: ${socket.id}`);
     adminSockets.delete(socket.id);
     
@@ -798,20 +818,19 @@ io.on('connection', (socket) => {
       }
     });
 
-
     if (disconnectedUserId) {
       const uId = disconnectedUserId;
       const user = users.get(uId);
       if (user) {
         user.isOnline = false;
         users.set(uId, user);
-        await dbService.saveActiveUser(user);
+        queueDbOperation(uId, () => dbService.saveActiveUser(user));
       }
       
       console.log(`User disconnected, scheduled cleanup in 15s for: ${user?.alias} (${uId})`);
       broadcastAdminStats();
       
-      const timeout = setTimeout(async () => {
+      const timeout = setTimeout(() => {
         disconnectTimeouts.delete(uId);
         
         const userAlias = users.get(uId)?.alias;
@@ -819,7 +838,7 @@ io.on('connection', (socket) => {
         
         // 1. Delete user profile completely
         users.delete(uId);
-        await dbService.deleteActiveUser(uId);
+        queueDbOperation(uId, () => dbService.deleteActiveUser(uId));
   
         // 2. Clean up all active connections involving this user
         const connectionsToDelete: string[] = [];
@@ -839,15 +858,14 @@ io.on('connection', (socket) => {
         // 3. Erase connections and messages history completely
         for (const connId of connectionsToDelete) {
           connections.delete(connId);
-          await dbService.deleteConnection(connId);
+          queueDbOperation(connId, () => dbService.deleteConnection(connId));
         }
         console.log(`Cleanup complete for user ${userAlias}. Deleted ${connectionsToDelete.length} connections.`);
         broadcastAdminStats();
       }, 15000);
-
+ 
       disconnectTimeouts.set(uId, timeout);
     }
-
   });
 
   // --- MULTIPLAYER GAME EVENTS ---
