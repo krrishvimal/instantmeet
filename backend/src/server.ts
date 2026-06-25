@@ -230,13 +230,7 @@ io.on('connection', (socket) => {
       console.log(`User reconnected, cancelled cleanup for: ${data.alias} (${userId})`);
     }
 
-    // Reject banned users immediately
-    if (bannedUsers.has(userId) || (await dbService.isUserBanned(userId))) {
-      bannedUsers.add(userId);
-      socket.emit('error-msg', 'You have been banned from the platform due to multiple community reports.');
-      socket.disconnect(true);
-      return;
-    }
+
 
 
     
@@ -275,9 +269,10 @@ io.on('connection', (socket) => {
     };
 
     users.set(userId, newUser);
-    await dbService.saveActiveUser(newUser);
     socket.emit('registration-success', { userId, alias: newUser.alias });
     console.log(`User registered: ${newUser.alias} (${userId}) at location [${newUser.location.lat}, ${newUser.location.lng}]`);
+    // Fire-and-forget DB save (non-blocking)
+    dbService.saveActiveUser(newUser).catch(() => {});
     broadcastAdminStats();
 
     // Notify users who subscribed to alerts for this city
