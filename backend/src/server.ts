@@ -310,7 +310,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle location update heartbeats
-  socket.on('update-location', async (data: { userId: string; location: Location }) => {
+  socket.on('update-location', (data: { userId: string; location: Location }) => {
     const user = users.get(data.userId);
     if (user && isValidCoordinate(data.location)) {
       user.location = data.location;
@@ -318,10 +318,12 @@ io.on('connection', (socket) => {
       user.socketId = socket.id;
       user.isOnline = true;
       users.set(data.userId, user);
-      await dbService.saveActiveUser(user);
       
-      // Notify client that location has synced
+      // Notify client that location has synced immediately
       socket.emit('location-synced', { location: user.location });
+
+      // Non-blocking database sync
+      dbService.saveActiveUser(user).catch(() => {});
     }
   });
 
@@ -425,7 +427,7 @@ io.on('connection', (socket) => {
   });
 
   // Accept wave / connection request
-  socket.on('accept-connection-request', async (data: { connectionId: string; userId: string }) => {
+  socket.on('accept-connection-request', (data: { connectionId: string; userId: string }) => {
     const conn = connections.get(data.connectionId);
     if (!conn) {
       socket.emit('error-msg', 'Connection request not found.');
@@ -444,7 +446,6 @@ io.on('connection', (socket) => {
     // Update connection status
     conn.status = 'anonymous';
     connections.set(data.connectionId, conn);
-    await dbService.saveConnection(data.connectionId, conn.user1Id, conn.user2Id);
 
     // Notify initiator
     if (partnerUser.socketId && partnerUser.isOnline) {
@@ -463,6 +464,9 @@ io.on('connection', (socket) => {
       partnerId: partnerUser.id,
       partnerAvatarUrl: partnerUser.avatarUrl,
     });
+
+    // Save connection to database in background
+    dbService.saveConnection(data.connectionId, conn.user1Id, conn.user2Id).catch(() => {});
   });
 
   // Handle live chat messages
@@ -581,13 +585,12 @@ io.on('connection', (socket) => {
   });
 
   // Handle blocking
-  socket.on('block-user', async (data: { connectionId: string; userId: string }) => {
+  socket.on('block-user', (data: { connectionId: string; userId: string }) => {
     const conn = connections.get(data.connectionId);
     if (!conn) return;
 
     conn.status = 'blocked';
     connections.set(data.connectionId, conn);
-    await dbService.deleteConnection(data.connectionId);
 
     const partnerId = conn.user1Id === data.userId ? conn.user2Id : conn.user1Id;
     const partner = users.get(partnerId);
@@ -598,15 +601,17 @@ io.on('connection', (socket) => {
       io.to(partner.socketId).emit('connection-blocked', { connectionId: conn.id });
     }
     broadcastAdminStats();
+
+    // Async database cleanup
+    dbService.deleteConnection(data.connectionId).catch(() => {});
   });
 
   // Handle silent connection deletion
-  socket.on('delete-connection', async (data: { connectionId: string; userId: string }) => {
+  socket.on('delete-connection', (data: { connectionId: string; userId: string }) => {
     const conn = connections.get(data.connectionId);
     if (!conn) return;
 
     connections.delete(data.connectionId);
-    await dbService.deleteConnection(data.connectionId);
 
     const partnerId = conn.user1Id === data.userId ? conn.user2Id : conn.user1Id;
     const partner = users.get(partnerId);
@@ -615,14 +620,17 @@ io.on('connection', (socket) => {
       io.to(partner.socketId).emit('connection-blocked', { connectionId: conn.id });
     }
     broadcastAdminStats();
+
+    // Async database cleanup
+    dbService.deleteConnection(data.connectionId).catch(() => {});
   });
 
   // Handle reporting a user
-  socket.on('report-user', async (data: { connectionId: string; reporterId: string; targetUserId: string }) => {
+  socket.on('report-user', (data: { connectionId: string; reporterId: string; targetUserId: string }) => {
     const conn = connections.get(data.connectionId);
     if (conn) {
       connections.delete(data.connectionId);
-      await dbService.deleteConnection(data.connectionId);
+      dbService.deleteConnection(data.connectionId).catch(() => {});
       
       const targetUser = users.get(data.targetUserId);
       if (targetUser && targetUser.socketId && targetUser.isOnline) {
@@ -630,8 +638,8 @@ io.on('connection', (socket) => {
       }
     }
 
-    // Save report to database
-    await dbService.saveReport(data.reporterId, data.targetUserId, data.connectionId);
+    // Save report to database (non-blocking)
+    dbService.saveReport(data.reporterId, data.targetUserId, data.connectionId).catch(() => {});
 
     // Increment reports count
     const count = (reportsCount.get(data.targetUserId) || 0) + 1;
@@ -641,14 +649,14 @@ io.on('connection', (socket) => {
     // If threshold reached (>= 3 reports), ban user immediately
     if (count >= 3) {
       bannedUsers.add(data.targetUserId);
-      await dbService.saveBannedUser(data.targetUserId);
+      dbService.saveBannedUser(data.targetUserId).catch(() => {});
       console.log(`[BAN] Banning user ${data.targetUserId} due to multiple reports.`);
 
       const targetUser = users.get(data.targetUserId);
       if (targetUser) {
         const targetSocketId = targetUser.socketId;
         users.delete(data.targetUserId);
-        await dbService.deleteActiveUser(data.targetUserId);
+        dbService.deleteActiveUser(data.targetUserId).catch(() => {});
 
         // Delete all active connections of the banned user
         for (const [cId, c] of connections.entries()) {
@@ -659,7 +667,7 @@ io.on('connection', (socket) => {
               io.to(partner.socketId).emit('connection-blocked', { connectionId: cId });
             }
             connections.delete(cId);
-            await dbService.deleteConnection(cId);
+            dbService.deleteConnection(cId).catch(() => {});
           }
         }
 
