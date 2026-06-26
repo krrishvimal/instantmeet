@@ -294,6 +294,26 @@ const getDropPositions = (
 };
 
 export default function App() {
+  // Preemptively check if the last active session has expired (> 60 seconds)
+  if (typeof window !== 'undefined') {
+    const lastActive = localStorage.getItem('im_lastActiveTimestamp');
+    if (lastActive) {
+      const elapsed = Date.now() - parseInt(lastActive, 10);
+      if (elapsed > 60000) {
+        localStorage.removeItem('im_isRegistered');
+        localStorage.removeItem('im_userId');
+        localStorage.removeItem('im_alias');
+        localStorage.removeItem('im_gender');
+        localStorage.removeItem('im_genderPreference');
+        localStorage.removeItem('im_age');
+        localStorage.removeItem('im_avatarUrl');
+        localStorage.removeItem('im_selectedTags');
+        localStorage.removeItem('im_selectedCity');
+        localStorage.removeItem('im_lastActiveTimestamp');
+      }
+    }
+  }
+
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -675,6 +695,29 @@ export default function App() {
     }
   }, [isConnected, isRegistered, socket, activeConnectionId, currentLocation]);
 
+  // Listen for visibility change or tab unload to save a timestamp
+  useEffect(() => {
+    const handleVisibilityOrUnload = () => {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('im_lastActiveTimestamp', String(Date.now()));
+      }
+    };
+
+    window.addEventListener('beforeunload', handleVisibilityOrUnload);
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        handleVisibilityOrUnload();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleVisibilityOrUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   // Establish Socket Connection
   useEffect(() => {
     const socketInstance = io(SOCKET_URL, {
@@ -699,6 +742,28 @@ export default function App() {
       setErrorMsg(msg);
       if (msg.toLowerCase().includes('not registered') || msg.toLowerCase().includes('expired')) {
         setIsRegistered(false);
+        setUserId('');
+        setAlias('');
+        setGender('male');
+        setGenderPreference('any');
+        setAge('');
+        setAvatarUrl('');
+        setSelectedTags(['Photography', 'Music', 'Coffee']);
+        setSelectedCity('');
+        setCurrentLocation(null);
+        setLocationSynced(false);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('im_isRegistered');
+          localStorage.removeItem('im_userId');
+          localStorage.removeItem('im_alias');
+          localStorage.removeItem('im_gender');
+          localStorage.removeItem('im_genderPreference');
+          localStorage.removeItem('im_age');
+          localStorage.removeItem('im_avatarUrl');
+          localStorage.removeItem('im_selectedTags');
+          localStorage.removeItem('im_selectedCity');
+          localStorage.removeItem('im_lastActiveTimestamp');
+        }
       }
       setTimeout(() => setErrorMsg(null), 5000);
     });
