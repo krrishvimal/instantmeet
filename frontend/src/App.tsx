@@ -6,9 +6,7 @@ import {
   ShieldAlert, 
   Send, 
   MapPin, 
-  Sparkles, 
   MessageSquare, 
-  Compass, 
   Loader2, 
   Users,
   Home,
@@ -2479,32 +2477,55 @@ export default function App() {
                     </h3>
                     
                     {/* Description */}
-                    <p className="text-xs leading-relaxed max-w-sm mx-auto mb-5" style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '13px' }}>
+                    <p className="text-sm leading-relaxed max-w-md mx-auto mb-5" style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '15px' }}>
                       InstantMeet connects you anonymously in real-time. Click <strong className="text-violet-300 font-semibold">Search People</strong> to scan your city, or click <strong className="text-violet-300 font-semibold">Drop Note</strong> to pin a voice note or message on the radar for others to find!
                     </p>
 
                     {/* Ephemeral Warning alert card */}
                     <div 
-                      className="mx-auto max-w-sm mb-8 px-4 py-3.5 rounded-2xl flex items-start gap-3 animate-fadeIn"
+                      className="animate-fadeIn"
                       style={{
                         background: 'rgba(245, 158, 11, 0.02)',
                         border: '1px solid rgba(245, 158, 11, 0.15)',
+                        borderRadius: '16px',
+                        padding: '16px 20px',
+                        maxWidth: '420px',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                        marginBottom: '32px',
+                        display: 'flex',
+                        alignItems: 'start',
+                        gap: '12px',
                         textAlign: 'left'
                       }}
                     >
-                      <ShieldAlert className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                      <div style={{ textTransform: 'none' }}>
-                        <span className="text-[11px] font-bold text-amber-300 block mb-0.5" style={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>Ephemeral Session Mode</span>
-                        <p className="text-[10px] text-text-secondary leading-relaxed m-0" style={{ color: 'rgba(255, 255, 255, 0.55)' }}>
+                      <ShieldAlert className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                      <div style={{ textTransform: 'none', flex: 1 }}>
+                        <span className="text-[13px] font-bold text-amber-300 block mb-1" style={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>Ephemeral Session Mode</span>
+                        <p className="text-[12px] text-text-secondary leading-relaxed m-0" style={{ color: 'rgba(255, 255, 255, 0.65)' }}>
                           Your temporary profile and drops will be completely erased. If you close the app or disconnect for over 1 minute, your active chats, voice drops, and match session will be permanently deleted.
                         </p>
                       </div>
                     </div>
 
                     {/* Status Pill */}
-                    <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold tracking-wide shadow-inner">
-                      <div className={`w-2 h-2 rounded-full ${selectedCity ? 'bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]'}`}></div>
-                      <span className={selectedCity ? 'text-cyan-300' : 'text-amber-300'} style={{ fontSize: '12px' }}>
+                    <div 
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '10px 24px',
+                        borderRadius: '9999px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        width: 'fit-content',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                        boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)'
+                      }}
+                    >
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${selectedCity ? 'bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]'}`} style={{ width: '8px', height: '8px', borderRadius: '50%' }}></div>
+                      <span className={selectedCity ? 'text-cyan-300' : 'text-amber-300'} style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.025em', whiteSpace: 'nowrap' }}>
                         {selectedCity ? `Scanner ready to search in ${selectedCity}` : 'Please select your city above to sync radar'}
                       </span>
                     </div>
@@ -3762,17 +3783,17 @@ export default function App() {
               </div>
               <div className="timeline-content">
                 <h5>Create your profile</h5>
-                <p>Add a name, age and interests.</p>
+                <p>Pick a temporary name, age, city, and interests.</p>
               </div>
             </div>
 
             <div className="timeline-step">
               <div className="timeline-icon">
-                <Compass className="w-4 h-4 animate-spin-slow" />
+                <MapPin className="w-4 h-4" />
               </div>
               <div className="timeline-content">
-                <h5>Enter the bubble</h5>
-                <p>We match you with people active in the same city.</p>
+                <h5>Scan or Drop Notes</h5>
+                <p>Scan your city or drop a voice/text note on the radar.</p>
               </div>
             </div>
 
@@ -3781,18 +3802,8 @@ export default function App() {
                 <MessageCircle className="w-4 h-4" />
               </div>
               <div className="timeline-content">
-                <h5>Get matched 1-to-1</h5>
-                <p>We show one person at a time.</p>
-              </div>
-            </div>
-
-            <div className="timeline-step">
-              <div className="timeline-icon">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div className="timeline-content">
-                <h5>Chat anonymously</h5>
-                <p>Talk, connect, and enjoy conversations.</p>
+                <h5>Match & Connect</h5>
+                <p>Wave to matches. Accepting a request opens a secure chat room.</p>
               </div>
             </div>
 
@@ -3802,7 +3813,17 @@ export default function App() {
               </div>
               <div className="timeline-content">
                 <h5>Play interactive games</h5>
-                <p>Play Tic Tac Toe or Draw & Guess inside chats.</p>
+                <p>Play Tic Tac Toe or Draw & Guess inside the chat.</p>
+              </div>
+            </div>
+
+            <div className="timeline-step">
+              <div className="timeline-icon">
+                <ShieldAlert className="w-4 h-4 text-amber-400" />
+              </div>
+              <div className="timeline-content">
+                <h5>Ephemeral Security</h5>
+                <p>Offline for over 1 minute? Everything is permanently deleted.</p>
               </div>
             </div>
           </div>
