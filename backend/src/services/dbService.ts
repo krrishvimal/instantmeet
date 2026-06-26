@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { User } from '../types';
+import { User, Drop } from '../types';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -242,5 +242,145 @@ export const dbService = {
       console.error('[Database] Exception loading reports count:', e);
     }
     return reportMap;
+  },
+
+  // Sync active drops
+  async saveDrop(drop: Drop): Promise<void> {
+    if (isFallbackMode || !supabase) return;
+    try {
+      const { error } = await supabase.from('drops').upsert({
+        id: drop.id,
+        user_id: drop.userId,
+        type: drop.type,
+        content_url: drop.contentUrl,
+        message_text: drop.messageText,
+        duration: drop.duration,
+        city: drop.city,
+        location_lat: drop.location.lat,
+        location_lng: drop.location.lng,
+        status: drop.status,
+        created_at: new Date(drop.createdAt).toISOString(),
+      });
+      if (error) console.error('[Database] Error saving drop:', error.message);
+    } catch (e) {
+      console.error('[Database] Exception saving drop:', e);
+    }
+  },
+
+  // Delete drop row
+  async deleteDrop(dropId: string): Promise<void> {
+    if (isFallbackMode || !supabase) return;
+    try {
+      const { error } = await supabase.from('drops').delete().eq('id', dropId);
+      if (error) console.error('[Database] Error deleting drop:', error.message);
+    } catch (e) {
+      console.error('[Database] Exception deleting drop:', e);
+    }
+  },
+
+  // Log connection waves on drops
+  async createDropRequest(dropId: string, senderId: string, receiverId: string): Promise<void> {
+    if (isFallbackMode || !supabase) return;
+    try {
+      const { error } = await supabase.from('drop_requests').insert({
+        drop_id: dropId,
+        sender_id: senderId,
+        receiver_id: receiverId,
+        status: 'pending'
+      });
+      if (error) console.error('[Database] Error creating drop request:', error.message);
+    } catch (e) {
+      console.error('[Database] Exception creating drop request:', e);
+    }
+  },
+
+  // Accept request, update status, and return connection ID
+  async acceptDropAndCreateConnection(dropId: string, requestId: string, senderId: string, receiverId: string): Promise<string> {
+    const connId = `conn-${Math.random().toString(36).substring(2, 9)}`;
+    if (isFallbackMode || !supabase) return connId;
+    try {
+      // 1. Mark drop request as accepted
+      await supabase.from('drop_requests').update({ status: 'accepted' }).eq('id', requestId);
+      // 2. Mark drop as accepted
+      await supabase.from('drops').update({ status: 'accepted' }).eq('id', dropId);
+      // 3. Create active connection pairing
+      await supabase.from('active_connections').upsert({
+        id: connId,
+        user1_id: senderId,
+        user2_id: receiverId,
+        status: 'active'
+      });
+    } catch (e) {
+      console.error('[Database] Exception accepting drop & creating connection:', e);
+    }
+    return connId;
+  },
+
+  // Load active drops on startup
+  async getActiveDrops(): Promise<Drop[]> {
+    if (isFallbackMode || !supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('drops')
+        .select('*')
+        .eq('status', 'active');
+      if (error) {
+        console.error('[Database] Error loading active drops:', error.message);
+        return [];
+      }
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        userId: row.user_id,
+        type: row.type,
+        contentUrl: row.content_url,
+        messageText: row.message_text,
+        duration: row.duration,
+        city: row.city,
+        location: { lat: row.location_lat, lng: row.location_lng },
+        status: row.status,
+        createdAt: new Date(row.created_at).getTime(),
+      }));
+    } catch (e) {
+      console.error('[Database] Exception loading active drops:', e);
+      return [];
+    }
+  },
+
+  // Delete audio file from storage bucket
+  async deleteAudioFile(filePath: string): Promise<void> {
+    if (isFallbackMode || !supabase) return;
+    try {
+      const { error } = await supabase.storage.from('audio_drops').remove([filePath]);
+      if (error) console.error('[Database] Error deleting audio file:', error.message);
+    } catch (e) {
+      console.error('[Database] Exception deleting audio file:', e);
+    }
+  },
+
+  // Upload audio file from base64 string
+  async uploadAudio(fileName: string, base64Data: string): Promise<string | null> {
+    if (isFallbackMode || !supabase) return null;
+    try {
+      const buffer = Buffer.from(base64Data, 'base64');
+      const { data, error } = await supabase.storage
+        .from('audio_drops')
+        .upload(fileName, buffer, {
+          contentType: 'audio/webm',
+          upsert: true
+        });
+      if (error) {
+        console.error('[Database] Error uploading audio file:', error.message);
+        return null;
+      }
+      
+      const { data: publicUrlData } = supabase.storage
+        .from('audio_drops')
+        .getPublicUrl(fileName);
+        
+      return publicUrlData.publicUrl;
+    } catch (e) {
+      console.error('[Database] Exception uploading audio file:', e);
+      return null;
+    }
   }
 };
