@@ -309,15 +309,45 @@ export default function App() {
   }, [activeTab]);
 
   // User Profile Info
-  const [userId, setUserId] = useState<string>('');
-  const [alias, setAlias] = useState('');
+  const [userId, setUserId] = useState<string>(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('im_userId') || '';
+    return '';
+  });
+  const [alias, setAlias] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('im_alias') || '';
+    return '';
+  });
   const [realName] = useState('');
-  const [gender, setGender] = useState<'male' | 'female'>('male');
-  const [genderPreference, setGenderPreference] = useState<'male' | 'female' | 'any'>('any');
-  const [age, setAge] = useState<number | ''>('');
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>(['Photography', 'Music', 'Coffee']);
-  const [isRegistered, setIsRegistered] = useState(false);
+  const [gender, setGender] = useState<'male' | 'female'>(() => {
+    if (typeof window !== 'undefined') return (localStorage.getItem('im_gender') as any) || 'male';
+    return 'male';
+  });
+  const [genderPreference, setGenderPreference] = useState<'male' | 'female' | 'any'>(() => {
+    if (typeof window !== 'undefined') return (localStorage.getItem('im_genderPreference') as any) || 'any';
+    return 'any';
+  });
+  const [age, setAge] = useState<number | ''>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('im_age');
+      return saved ? parseInt(saved, 10) : '';
+    }
+    return '';
+  });
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('im_avatarUrl') || '';
+    return '';
+  });
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('im_selectedTags');
+      return saved ? JSON.parse(saved) : ['Photography', 'Music', 'Coffee'];
+    }
+    return ['Photography', 'Music', 'Coffee'];
+  });
+  const [isRegistered, setIsRegistered] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('im_isRegistered') === 'true';
+    return false;
+  });
   const [newTagInput, setNewTagInput] = useState('');
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
@@ -343,7 +373,10 @@ export default function App() {
   // Geolocation & Mocking state
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
   const [locationSynced, setLocationSynced] = useState(false);
-  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [selectedCity, setSelectedCity] = useState<string>(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('im_selectedCity') || '';
+    return '';
+  });
 
   // Discovery / Matching State
   const [isScanning, setIsScanning] = useState(false);
@@ -510,6 +543,24 @@ export default function App() {
       window.removeEventListener('resize', updateBounds);
     };
   }, [activeTab, activeConnectionId, isRegistered, nearbyUsers.length]);
+
+  // Synchronize profile data to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('im_isRegistered', String(isRegistered));
+      if (isRegistered) {
+        localStorage.setItem('im_userId', userId);
+        localStorage.setItem('im_alias', alias);
+        localStorage.setItem('im_gender', gender);
+        localStorage.setItem('im_genderPreference', genderPreference);
+        localStorage.setItem('im_age', String(age));
+        localStorage.setItem('im_avatarUrl', avatarUrl);
+        localStorage.setItem('im_selectedTags', JSON.stringify(selectedTags));
+        localStorage.setItem('im_selectedCity', selectedCity);
+      }
+    }
+  }, [isRegistered, userId, alias, gender, genderPreference, age, avatarUrl, selectedTags, selectedCity]);
+
   const displayedDrops = activeDrops;
 
   const [requestedDropIds, setRequestedDropIds] = useState<Set<string>>(new Set());
@@ -612,7 +663,7 @@ export default function App() {
 
   // Re-register automatically on reconnect (if user was already registered)
   useEffect(() => {
-    if (isConnected && isRegistered && socket) {
+    if (isConnected && isRegistered && socket && currentLocation) {
       console.log('Socket reconnected, auto-registering user:', regDataRef.current.alias);
       socket.emit('register-user', regDataRef.current);
       socket.emit('get-active-drops', { userId: regDataRef.current.userId, global: isGlobalSearchActiveRef.current });
@@ -622,7 +673,7 @@ export default function App() {
         socket.emit('get-chat-history', { connectionId: activeConnectionId });
       }
     }
-  }, [isConnected, isRegistered, socket, activeConnectionId]);
+  }, [isConnected, isRegistered, socket, activeConnectionId, currentLocation]);
 
   // Establish Socket Connection
   useEffect(() => {
