@@ -1,10 +1,11 @@
 import express from 'express';
+import crypto from 'crypto';
 import { exec } from 'child_process';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { User, Connection, Message, Location, SearchResult } from './types';
+import { User, Connection, Message, Location, SearchResult, Drop } from './types';
 import { calculateDistance, obfuscateDistance, isValidCoordinate } from './services/geoService';
 import { dbService, isFallbackMode } from './services/dbService';
 
@@ -16,7 +17,7 @@ app.use(cors({
   origin: corsOrigin,
   methods: ['GET', 'POST'],
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // --- Rate Limiter (in-memory, per socket) ---
 const rateLimitStore = new Map<string, Map<string, number[]>>();
@@ -62,6 +63,26 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), connections: users.size });
 });
 
+// --- Upload Audio Drop Endpoint ---
+app.post('/upload-audio', async (req, res) => {
+  try {
+    const { base64Data, fileName } = req.body;
+    if (!base64Data || !fileName) {
+      res.status(400).json({ error: 'Missing base64Data or fileName' });
+      return;
+    }
+    const publicUrl = await dbService.uploadAudio(fileName, base64Data);
+    if (!publicUrl) {
+      res.status(500).json({ error: 'Upload failed' });
+      return;
+    }
+    res.json({ publicUrl });
+  } catch (err: any) {
+    console.error('[Upload Handler] Exception:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
 // In-memory data stores (simulating Supabase & Redis)
 const users = new Map<string, User>();
 const connections = new Map<string, Connection>();
@@ -101,6 +122,7 @@ const reportsCount = new Map<string, number>();
 const bannedUsers = new Set<string>();
 const adminSockets = new Set<string>();
 const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || 'admin123';
+const activeDrops = new Map<string, Drop>(); // dropId -> Drop
 
 // Queue of pending database operations per resource ID (userId, connectionId, etc.)
 // to guarantee in-order execution of writes/deletes and prevent race conditions.
@@ -170,6 +192,10 @@ async function bootstrapDatabase() {
     const reports = await dbService.getReportsCount();
     reports.forEach((count, uId) => reportsCount.set(uId, count));
     console.log(`[Database] Loaded reports count for ${reports.size} users.`);
+
+    const activeDps = await dbService.getActiveDrops();
+    activeDps.forEach((dp) => activeDrops.set(dp.id, dp));
+    console.log(`[Database] Loaded ${activeDps.length} active drops.`);
   } catch (e) {
     console.error('[Database] Bootstrap failed:', e);
   }
@@ -404,6 +430,185 @@ io.on('connection', (socket) => {
 
     // Send back matching users list
     socket.emit('nearby-results', { results: searchResults, isGlobal: !!data.global });
+  });
+
+  // Create voice or message drop
+  socket.on('create-drop', (data: {
+    userId: string;
+    type: 'voice' | 'message';
+    contentUrl?: string;
+    messageText?: string;
+    duration?: number;
+  }) => {
+    if (rateLimitCheck(socket.id, 'create-drop', 10)) { socket.emit('error-msg', 'Rate limit exceeded. Please slow down.'); return; }
+
+    const user = users.get(data.userId);
+    if (!user) {
+      socket.emit('error-msg', 'User session not found.');
+      return;
+    }
+
+    const messageText = data.messageText ? sanitizeText(data.messageText).substring(0, 140) : undefined;
+
+    const newDrop: Drop = {
+      id: crypto.randomUUID(),
+      userId: data.userId,
+      type: data.type,
+      contentUrl: data.contentUrl,
+      messageText,
+      duration: data.duration,
+      city: user.city,
+      location: user.location,
+      status: 'active',
+      createdAt: Date.now()
+    };
+
+    activeDrops.set(newDrop.id, newDrop);
+
+    // Queue database write
+    queueDbOperation(newDrop.id, () => dbService.saveDrop(newDrop));
+
+    // Broadcast new drop to all online users in the same city
+    users.forEach((otherUser) => {
+      if (otherUser.city === user.city && otherUser.socketId && otherUser.isOnline) {
+        io.to(otherUser.socketId).emit('new-drop', newDrop);
+      }
+    });
+
+    socket.emit('create-drop-success', { dropId: newDrop.id });
+  });
+
+  // Fetch active drops for user's radar
+  socket.on('get-active-drops', (data: { userId: string; global?: boolean }) => {
+    const user = users.get(data.userId);
+    if (!user) return;
+
+    const dropsInCity: Drop[] = [];
+    activeDrops.forEach((drop) => {
+      if (drop.status === 'active') {
+        if (data.global || drop.city === user.city) {
+          dropsInCity.push(drop);
+        }
+      }
+    });
+
+    socket.emit('active-drops-list', { drops: dropsInCity });
+  });
+
+  // Connect request wave from a drop
+  socket.on('request-drop-connection', (data: { dropId: string; senderId: string }) => {
+    if (rateLimitCheck(socket.id, 'request-drop-connection', 15)) { socket.emit('error-msg', 'Rate limit exceeded. Please slow down.'); return; }
+
+    const drop = activeDrops.get(data.dropId);
+    if (!drop || drop.status !== 'active') {
+      socket.emit('error-msg', 'This drop has already been accepted or has expired.');
+      return;
+    }
+
+    const sender = users.get(data.senderId);
+    const receiver = users.get(drop.userId);
+
+    if (!sender || !receiver) {
+      socket.emit('error-msg', 'User session not found.');
+      return;
+    }
+
+    const requestId = crypto.randomUUID();
+
+    // Queue save request in database
+    queueDbOperation(requestId, () => dbService.createDropRequest(drop.id, sender.id, receiver.id));
+
+    // Notify the drop creator (receiver)
+    if (receiver.socketId && receiver.isOnline) {
+      io.to(receiver.socketId).emit('incoming-drop-request', {
+        requestId,
+        dropId: drop.id,
+        dropType: drop.type,
+        sender: {
+          id: sender.id,
+          alias: sender.alias,
+          avatarUrl: sender.avatarUrl
+        }
+      });
+    }
+
+    socket.emit('request-drop-success', { dropId: drop.id });
+  });
+
+  // Accept drop match request
+  socket.on('accept-drop-request', (data: { requestId: string; dropId: string; senderId: string; accepterId: string }) => {
+    const drop = activeDrops.get(data.dropId);
+    if (!drop || drop.status !== 'active') {
+      socket.emit('error-msg', 'This drop is no longer active.');
+      return;
+    }
+
+    const sender = users.get(data.senderId);
+    const accepter = users.get(data.accepterId);
+
+    if (!sender || !accepter) {
+      socket.emit('error-msg', 'User session not found.');
+      return;
+    }
+
+    // 1. Mark drop as accepted in memory and remove it from radar cache
+    drop.status = 'accepted';
+    activeDrops.delete(drop.id);
+
+    // 2. Broadcast to all users in the city to remove the emoji node
+    users.forEach((otherUser) => {
+      if (otherUser.city === drop.city && otherUser.socketId && otherUser.isOnline) {
+        io.to(otherUser.socketId).emit('drop-removed', { dropId: drop.id });
+      }
+    });
+
+    // 3. Delete audio file from storage if it is a voice note
+    if (drop.type === 'voice' && drop.contentUrl) {
+      const parts = drop.contentUrl.split('/audio_drops/');
+      if (parts.length > 1) {
+        const filePath = parts[1];
+        dbService.deleteAudioFile(filePath).catch(() => {});
+      }
+    }
+
+    // 4. Create pairing in database and spawn chat connection
+    dbService.acceptDropAndCreateConnection(drop.id, data.requestId, sender.id, accepter.id)
+      .then((connId) => {
+        const newConn: Connection = {
+          id: connId,
+          user1Id: sender.id,
+          user2Id: accepter.id,
+          status: 'anonymous',
+          user1Reveal: false,
+          user2Reveal: false,
+          messages: [],
+          createdAt: Date.now()
+        };
+
+        connections.set(connId, newConn);
+
+        // 5. Notify both users that match is active and chats should load
+        if (sender.socketId && sender.isOnline) {
+          io.to(sender.socketId).emit('connection-accepted', {
+            connectionId: connId,
+            partnerAlias: accepter.alias,
+            partnerId: accepter.id,
+            partnerAvatarUrl: accepter.avatarUrl
+          });
+        }
+
+        if (accepter.socketId && accepter.isOnline) {
+          io.to(accepter.socketId).emit('connection-accepted', {
+            connectionId: connId,
+            partnerAlias: sender.alias,
+            partnerId: sender.id,
+            partnerAvatarUrl: sender.avatarUrl
+          });
+        }
+      })
+      .catch((err) => {
+        console.error('[Database Error] Failed to accept drop match:', err);
+      });
   });
 
   // Send wave / connection request
@@ -852,6 +1057,26 @@ io.on('connection', (socket) => {
         // 1. Delete user profile completely
         users.delete(uId);
         queueDbOperation(uId, () => dbService.deleteActiveUser(uId));
+
+        // 1.5. Clean up all active drops created by this user
+        activeDrops.forEach((drop, dropId) => {
+          if (drop.userId === uId) {
+            if (drop.type === 'voice' && drop.contentUrl) {
+              const parts = drop.contentUrl.split('/audio_drops/');
+              if (parts.length > 1) {
+                const filePath = parts[1];
+                dbService.deleteAudioFile(filePath).catch(() => {});
+              }
+            }
+            activeDrops.delete(dropId);
+            queueDbOperation(dropId, () => dbService.deleteDrop(dropId));
+            users.forEach((otherUser) => {
+              if (otherUser.city === drop.city && otherUser.socketId && otherUser.isOnline) {
+                io.to(otherUser.socketId).emit('drop-removed', { dropId });
+              }
+            });
+          }
+        });
   
         // 2. Clean up all active connections involving this user
         const connectionsToDelete: string[] = [];

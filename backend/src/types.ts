@@ -52,3 +52,16 @@ export interface SearchResult {
   isOnline: boolean;
   city?: string;
 }
+
+export interface Drop {
+  id: string;
+  userId: string;
+  type: 'voice' | 'message';
+  contentUrl?: string;
+  messageText?: string;
+  duration?: number;
+  city: string;
+  location: Location;
+  status: 'active' | 'accepted';
+  createdAt: number;
+}

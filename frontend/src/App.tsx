@@ -161,16 +161,137 @@ interface ToastMessage {
   type: 'info' | 'success' | 'error' | 'warning';
 }
 
+interface Drop {
+  id: string;
+  userId: string;
+  type: 'voice' | 'message';
+  contentUrl?: string;
+  messageText?: string;
+  duration?: number;
+  city: string;
+  location: { lat: number; lng: number };
+  status: 'active' | 'accepted';
+  createdAt: number;
+}
+
 interface Notification {
   id: string;
-  type: 'wave' | 'message';
+  type: 'wave' | 'message' | 'drop-request';
   fromUserId: string;
   fromUserAlias: string;
   fromUserAvatarUrl?: string;
   message: string;
   timestamp: Date;
   connectionId?: string;
+  dropId?: string;
+  requestId?: string;
+  dropType?: 'voice' | 'message';
 }
+
+interface RadarBounds {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  forbiddenRects: Array<{ xMin: number; xMax: number; yMin: number; yMax: number }>;
+}
+
+const seededRandom = (seedString: string) => {
+  let hash = 0;
+  for (let i = 0; i < seedString.length; i++) {
+    hash = seedString.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return () => {
+    const x = Math.sin(hash++) * 10000;
+    return x - Math.floor(x);
+  };
+};
+
+const getDropPositions = (
+  drops: Drop[],
+  bounds: RadarBounds,
+  matchedUsersCount: number
+): Array<{ drop: Drop; x: number; y: number }> => {
+  const placed: Array<{ x: number; y: number }> = [];
+  
+  // Calculate matched node coordinates relative to centerpiece to avoid them
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+  const matchedCoords: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < matchedUsersCount; i++) {
+    const angle = (i * 360) / (matchedUsersCount || 1) - 30;
+    const radian = (angle * Math.PI) / 180;
+    const orbitIndex = i % 3;
+    let baseRadius = 115;
+    if (orbitIndex === 0) baseRadius = 95;
+    if (orbitIndex === 2) baseRadius = 135;
+    if (isMobile) {
+      baseRadius = 90;
+      if (orbitIndex === 0) baseRadius = 75;
+      if (orbitIndex === 2) baseRadius = 105;
+    }
+    matchedCoords.push({
+      x: Math.cos(radian) * baseRadius,
+      y: Math.sin(radian) * baseRadius
+    });
+  }
+
+  return drops.map((drop) => {
+    const rand = seededRandom(drop.id);
+    let bestX = 0;
+    let bestY = -150;
+    let placedSuccess = false;
+    const minGap = 85; // 85px center-to-center is ~1cm clear gap
+
+    // We do multiple passes with decreasing gap sizes if placement is difficult
+    const gapMultiplierTiers = [1.0, 0.8, 0.6, 0.4];
+
+    for (const tier of gapMultiplierTiers) {
+      const currentGap = minGap * tier;
+      for (let attempt = 0; attempt < 150; attempt++) {
+        // Generate coordinates randomly distributed in xMin..xMax and yMin..yMax
+        const rx = bounds.xMin + rand() * (bounds.xMax - bounds.xMin);
+        const ry = bounds.yMin + rand() * (bounds.yMax - bounds.yMin);
+        
+        // 1. Avoid center Saturn orb and the orbit ring (exclude radius < 150px)
+        const distFromCenter = Math.sqrt(rx * rx + ry * ry);
+        if (distFromCenter < 150) continue;
+
+        // 2. Avoid all forbidden rects (top corners, bottom buttons)
+        const overlapsForbidden = bounds.forbiddenRects.some(
+          (rect) => rx >= rect.xMin && rx <= rect.xMax && ry >= rect.yMin && ry <= rect.yMax
+        );
+        if (overlapsForbidden) continue;
+
+        // 3. Avoid other placed drops
+        const tooCloseToDrops = placed.some((other) => {
+          const dx = rx - other.x;
+          const dy = ry - other.y;
+          return Math.sqrt(dx * dx + dy * dy) < currentGap;
+        });
+        if (tooCloseToDrops) continue;
+
+        // 4. Avoid matched user nodes on orbits
+        const tooCloseToMatched = matchedCoords.some((other) => {
+          const dx = rx - other.x;
+          const dy = ry - other.y;
+          return Math.sqrt(dx * dx + dy * dy) < currentGap;
+        });
+        if (tooCloseToMatched) continue;
+
+        // Found a safe spot!
+        bestX = rx;
+        bestY = ry;
+        placedSuccess = true;
+        break;
+      }
+      if (placedSuccess) break;
+    }
+
+    const pos = { x: bestX, y: bestY };
+    placed.push(pos);
+    return { drop, x: pos.x, y: pos.y };
+  });
+};
 
 export default function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -206,7 +327,7 @@ export default function App() {
   const [visibleOnRadar, setVisibleOnRadar] = useState(true);
   const [stealthMode, setStealthMode] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [isSubscribedToCityAlerts, setIsSubscribedToCityAlerts] = useState(false);
+
   const [activeInterestFilter, setActiveInterestFilter] = useState<string | null>(null);
   const [batchIndex, setBatchIndex] = useState(0);
 
@@ -315,6 +436,149 @@ export default function App() {
     time: string;
   }[]>([]);
 
+  // Drop states
+  const [activeDrops, setActiveDrops] = useState<Drop[]>([]);
+  const [isMockDropsActive, setIsMockDropsActive] = useState(false);
+
+  // Refs and state for dynamic radar bounds calculation
+  const glassPanelRef = useRef<HTMLDivElement | null>(null);
+  const orbContainerRef = useRef<HTMLDivElement | null>(null);
+  const [radarBounds, setRadarBounds] = useState<RadarBounds>({
+    xMin: -380,
+    xMax: 380,
+    yMin: -190,
+    yMax: 190,
+    forbiddenRects: []
+  });
+
+  // Dynamically calculate radar boundaries and avoid obstacles (top buttons, bottom controls)
+  useEffect(() => {
+    const updateBounds = () => {
+      const panel = glassPanelRef.current;
+      const orb = orbContainerRef.current;
+      if (!panel || !orb) return;
+
+      const panelRect = panel.getBoundingClientRect();
+      const orbRect = orb.getBoundingClientRect();
+
+      const centerX = orbRect.left + orbRect.width / 2;
+      const centerY = orbRect.top + orbRect.height / 2;
+
+      // Outer boundaries of glass panel relative to the center of the planet orb container
+      // Adding safety margins so drops do not clip boundaries (each drop has 42px width/height)
+      const xMin = panelRect.left - centerX + 30;
+      const xMax = panelRect.right - centerX - 30;
+      const yMin = panelRect.top - centerY + 30;
+      const yMax = panelRect.bottom - centerY - 30;
+
+      // Obstacles to avoid (top buttons, bottom controls)
+      const forbiddenRects: Array<{ xMin: number; xMax: number; yMin: number; yMax: number }> = [];
+      const elementIds = ['edit-profile-btn', 'toggle-mock-btn', 'bottom-controls-area'];
+      
+      elementIds.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) {
+          const r = el.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            forbiddenRects.push({
+              xMin: r.left - centerX - 25,
+              xMax: r.right - centerX + 25,
+              yMin: r.top - centerY - 25,
+              yMax: r.bottom - centerY + 25
+            });
+          }
+        }
+      });
+
+      setRadarBounds({ xMin, xMax, yMin, yMax, forbiddenRects });
+    };
+
+    updateBounds();
+
+    // Use ResizeObserver to detect layout changes and recalculate bounds
+    const panel = glassPanelRef.current;
+    if (!panel) return;
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(updateBounds);
+    });
+    observer.observe(panel);
+
+    // Also update on window resize as a secondary trigger
+    window.addEventListener('resize', updateBounds);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateBounds);
+    };
+  }, [activeTab, activeConnectionId, isRegistered, nearbyUsers.length]);
+  
+  const displayedDrops = useMemo(() => {
+    if (isMockDropsActive) {
+      const mockList: Drop[] = [];
+      for (let i = 0; i < 60; i++) {
+        const isVoice = i % 2 === 0;
+        mockList.push({
+          id: `mock-drop-${i}`,
+          userId: `mock-user-${i}`,
+          type: isVoice ? 'voice' : 'message',
+          messageText: isVoice ? undefined : `Mock message drop #${i} with some sample text for testing layout.`,
+          contentUrl: isVoice ? 'https://example.com/mock-audio.mp3' : undefined,
+          duration: isVoice ? 12 : undefined,
+          city: selectedCity || 'Pune',
+          location: { lat: 18.5204, lng: 73.8567 },
+          status: 'active',
+          createdAt: Date.now() - i * 1000 * 60,
+        });
+      }
+      return mockList;
+    }
+    return activeDrops;
+  }, [isMockDropsActive, activeDrops, selectedCity]);
+
+  const [requestedDropIds, setRequestedDropIds] = useState<Set<string>>(new Set());
+  const [selectedDrop, setSelectedDrop] = useState<Drop | null>(null);
+  const [isDropModalOpen, setIsDropModalOpen] = useState(false);
+  const [dropType, setDropType] = useState<'voice' | 'message'>('voice');
+  const [dropMessageText, setDropMessageText] = useState('');
+  
+  // Voice Recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  // Audio playback state
+  const [currentlyPlayingDropId, setCurrentlyPlayingDropId] = useState<string | null>(null);
+  const [audioPlaybackProgress, setAudioPlaybackProgress] = useState(0);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<any>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+
+  const isGlobalSearchActiveRef = useRef(isGlobalSearchActive);
+  useEffect(() => {
+    isGlobalSearchActiveRef.current = isGlobalSearchActive;
+  }, [isGlobalSearchActive]);
+
+  useEffect(() => {
+    if (selectedNode) {
+      setSelectedDrop(null);
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+        setCurrentlyPlayingDropId(null);
+        setAudioPlaybackProgress(0);
+      }
+    }
+  }, [selectedNode]);
+
+  useEffect(() => {
+    if (selectedDrop) {
+      setSelectedNode(null);
+    }
+  }, [selectedDrop]);
+
   // Keep ref to avoid stale closures in socket event handlers
   const userIdRef = useRef(userId);
   useEffect(() => {
@@ -374,6 +638,7 @@ export default function App() {
     if (isConnected && isRegistered && socket) {
       console.log('Socket reconnected, auto-registering user:', regDataRef.current.alias);
       socket.emit('register-user', regDataRef.current);
+      socket.emit('get-active-drops', { userId: regDataRef.current.userId, global: isGlobalSearchActiveRef.current });
       
       // If we are currently in an active chat room, sync history to catch up on missed messages
       if (activeConnectionId) {
@@ -414,6 +679,7 @@ export default function App() {
     socketInstance.on('registration-success', (data: { userId: string; alias: string }) => {
       setUserId(data.userId);
       setIsRegistered(true);
+      socketInstance.emit('get-active-drops', { userId: data.userId, global: isGlobalSearchActiveRef.current });
     });
 
     socketInstance.on('incoming-connection-request', (data: {
@@ -563,24 +829,6 @@ export default function App() {
       setLocationSynced(true);
     });
 
-    socketInstance.on('subscribe-city-alerts-success', (data: { city: string }) => {
-      setIsSubscribedToCityAlerts(true);
-      showToast(`Alert subscription active for ${data.city}! 🔔`, 'success');
-    });
-
-    socketInstance.on('city-alert-new-user', (data: { city: string; alias: string }) => {
-      if (Notification.permission === 'granted') {
-        const notif = new Notification(`InstantMeet: New user in ${data.city}!`, {
-          body: `@${data.alias} just joined. Open InstantMeet to match and chat!`,
-        });
-        notif.onclick = () => {
-          window.focus();
-        };
-      } else {
-        showToast(`New user (@${data.alias}) just joined in ${data.city}!`, 'info');
-      }
-    });
-
     socketInstance.on('nearby-results', (data: SearchResult[] | { results: SearchResult[]; isGlobal?: boolean }) => {
       const rawList = Array.isArray(data) ? data : data.results;
       const wasGlobal = Array.isArray(data) ? false : !!data.isGlobal;
@@ -726,6 +974,69 @@ export default function App() {
       setDgIncorrectGuess('');
     });
 
+    socketInstance.on('new-drop', (drop: Drop) => {
+      const user = regDataRef.current;
+      if (isGlobalSearchActiveRef.current || drop.city === user.city) {
+        setActiveDrops((prev) => {
+          if (prev.some((d) => d.id === drop.id)) return prev;
+          return [...prev, drop];
+        });
+      }
+    });
+
+    socketInstance.on('drop-removed', (data: { dropId: string }) => {
+      setActiveDrops((prev) => prev.filter((d) => d.id !== data.dropId));
+    });
+
+    socketInstance.on('active-drops-list', (data: { drops: Drop[] }) => {
+      setActiveDrops(data.drops);
+    });
+
+    socketInstance.on('create-drop-success', (_data: { dropId: string }) => {
+      showToast('Drop placed successfully! 📍', 'success');
+      setIsDropModalOpen(false);
+      setIsUploading(false);
+      setAudioBlob(null);
+      setDropMessageText('');
+      socketInstance.emit('get-active-drops', { userId: userIdRef.current, global: isGlobalSearchActiveRef.current });
+    });
+
+    socketInstance.on('incoming-drop-request', (data: {
+      requestId: string;
+      dropId: string;
+      dropType: 'voice' | 'message';
+      sender: {
+        id: string;
+        alias: string;
+        avatarUrl?: string;
+      };
+    }) => {
+      const newNotif: Notification = {
+        id: `drop-req-${data.requestId}-${Date.now()}`,
+        type: 'drop-request',
+        fromUserId: data.sender.id,
+        fromUserAlias: data.sender.alias,
+        fromUserAvatarUrl: data.sender.avatarUrl,
+        message: data.dropType === 'voice' ? 'waved back at your voice drop!' : 'replied to your message drop!',
+        timestamp: new Date(),
+        connectionId: data.requestId, // We use connectionId to store requestId for simplicity
+        dropId: data.dropId,
+        requestId: data.requestId,
+        dropType: data.dropType
+      };
+      setNotifications((prev) => [newNotif, ...prev]);
+      showToast(`Someone connected to your drop! 🎤`, 'info');
+    });
+
+    socketInstance.on('request-drop-success', (data: { dropId: string }) => {
+      showToast('Connection request sent! Waiting for approval.', 'success');
+      setRequestedDropIds((prev) => {
+        const next = new Set(prev);
+        next.add(data.dropId);
+        return next;
+      });
+    });
+
     setSocket(socketInstance);
 
     return () => {
@@ -764,7 +1075,6 @@ export default function App() {
   // Sync location on mount, registration, or when selected city changes
   useEffect(() => {
     syncLocation();
-    setIsSubscribedToCityAlerts(false); // Reset alerts subscription state when city changes
     setIsGlobalSearchActive(false); // Reset global search status when city changes
     setActiveInterestFilter(null);
     setBatchIndex(0);
@@ -831,28 +1141,7 @@ export default function App() {
     }
   };
 
-  const handleSubscribeCityAlerts = () => {
-    if (!socket || !userId) return;
 
-    if (!('Notification' in window)) {
-      showToast('This browser does not support desktop notifications.', 'error');
-      return;
-    }
-
-    if (Notification.permission === 'granted') {
-      socket.emit('subscribe-city-alerts', { userId, city: selectedCity });
-    } else if (Notification.permission !== 'denied') {
-      Notification.requestPermission().then((permission) => {
-        if (permission === 'granted') {
-          socket.emit('subscribe-city-alerts', { userId, city: selectedCity });
-        } else {
-          showToast('Notification permission denied.', 'warning');
-        }
-      });
-    } else {
-      showToast('Notification permission has been blocked. Please enable it in browser settings.', 'warning');
-    }
-  };
 
   // Trigger discovery search
   const handleSearch = () => {
@@ -862,9 +1151,11 @@ export default function App() {
     // Persist global search status if already active, otherwise default to local
     const isGlobal = isGlobalSearchActive;
     setSelectedNode(null);
+    setSelectedDrop(null);
     setBatchIndex(0);
     setActiveInterestFilter(null);
     socket.emit('search-nearby', { userId, radius: 50, global: isGlobal });
+    socket.emit('get-active-drops', { userId, global: isGlobal });
   };
 
   // Trigger global fallback search
@@ -874,9 +1165,11 @@ export default function App() {
     setShowGlobalFallbackPrompt(false);
     setIsGlobalSearchActive(true);
     setSelectedNode(null);
+    setSelectedDrop(null);
     setBatchIndex(0);
     setActiveInterestFilter(null);
     socket.emit('search-nearby', { userId, radius: 50, global: true });
+    socket.emit('get-active-drops', { userId, global: true });
   };
 
   // Reset back to local city search
@@ -886,9 +1179,11 @@ export default function App() {
     setShowGlobalFallbackPrompt(false);
     setIsGlobalSearchActive(false);
     setSelectedNode(null);
+    setSelectedDrop(null);
     setBatchIndex(0);
     setActiveInterestFilter(null);
     socket.emit('search-nearby', { userId, radius: 50, global: false });
+    socket.emit('get-active-drops', { userId, global: false });
   };
 
   const handleNextBatch = () => {
@@ -951,6 +1246,249 @@ export default function App() {
     }
     setNotifications((prev) => prev.filter((n) => n.id !== notif.id));
     setShowNotifications(false);
+  };
+
+  // Start recording voice note
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(blob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      setIsRecording(true);
+      setRecordingSeconds(0);
+      setAudioBlob(null);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => {
+          if (prev >= 59) {
+            stopRecording();
+            return 60;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+
+      mediaRecorder.start();
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+      showToast('Microphone access denied or not available.', 'error');
+    }
+  };
+
+  // Stop recording voice note
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setAudioDuration(recordingSeconds);
+    }
+  };
+
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const previewPlayerRef = useRef<HTMLAudioElement | null>(null);
+
+  const togglePreviewPlayback = () => {
+    if (!audioBlob) return;
+
+    if (isPreviewPlaying) {
+      if (previewPlayerRef.current) {
+        previewPlayerRef.current.pause();
+      }
+      setIsPreviewPlaying(false);
+      return;
+    }
+
+    const url = URL.createObjectURL(audioBlob);
+    const audio = new Audio(url);
+    previewPlayerRef.current = audio;
+    setIsPreviewPlaying(true);
+
+    audio.addEventListener('ended', () => {
+      setIsPreviewPlaying(false);
+    });
+
+    audio.play().catch(() => {
+      setIsPreviewPlaying(false);
+    });
+  };
+
+  const closeDropModal = () => {
+    setIsDropModalOpen(false);
+    if (isRecording) {
+      stopRecording();
+    }
+    setAudioBlob(null);
+    setDropMessageText('');
+    if (previewPlayerRef.current) {
+      previewPlayerRef.current.pause();
+    }
+    setIsPreviewPlaying(false);
+  };
+
+  const handlePublishDrop = async () => {
+    if (!socket || !userId) return;
+
+    if (dropType === 'message') {
+      if (!dropMessageText.trim()) {
+        showToast('Please type a message first.', 'warning');
+        return;
+      }
+      setIsUploading(true);
+      socket.emit('create-drop', {
+        userId,
+        type: 'message',
+        messageText: dropMessageText
+      });
+    } else {
+      if (!audioBlob) {
+        showToast('Please record a voice note first.', 'warning');
+        return;
+      }
+      setIsUploading(true);
+
+      try {
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          try {
+            const base64String = (reader.result as string).split(',')[1];
+            const fileName = `${userId}-${Date.now()}.webm`;
+
+            const response = await fetch(`${SOCKET_URL}/upload-audio`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                base64Data: base64String,
+                fileName
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error('Upload request failed');
+            }
+
+            const result = await response.json();
+            const publicUrl = result.publicUrl;
+
+            socket.emit('create-drop', {
+              userId,
+              type: 'voice',
+              contentUrl: publicUrl,
+              duration: audioDuration
+            });
+          } catch (err) {
+            console.error('Failed to upload voice drop:', err);
+            showToast('Failed to upload voice drop. Try again.', 'error');
+            setIsUploading(false);
+          }
+        };
+      } catch (err) {
+        console.error('Failed to upload voice drop:', err);
+        showToast('Failed to upload voice drop. Try again.', 'error');
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const handlePlayDropAudio = (drop: Drop) => {
+    if (!drop.contentUrl) return;
+
+    if (currentlyPlayingDropId === drop.id) {
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+      }
+      setCurrentlyPlayingDropId(null);
+      setAudioPlaybackProgress(0);
+      return;
+    }
+
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+    }
+
+    setCurrentlyPlayingDropId(drop.id);
+    setAudioPlaybackProgress(0);
+
+    const audio = new Audio(drop.contentUrl);
+    audioPlayerRef.current = audio;
+
+    audio.addEventListener('timeupdate', () => {
+      if (audio.duration) {
+        setAudioPlaybackProgress((audio.currentTime / audio.duration) * 100);
+      }
+    });
+
+    audio.addEventListener('ended', () => {
+      setCurrentlyPlayingDropId(null);
+      setAudioPlaybackProgress(0);
+    });
+
+    audio.addEventListener('error', () => {
+      showToast('Failed to play audio drop clip.', 'error');
+      setCurrentlyPlayingDropId(null);
+      setAudioPlaybackProgress(0);
+    });
+
+    audio.play().catch((err) => {
+      console.error('Audio play error:', err);
+      showToast('Could not play audio. Check browser permissions.', 'error');
+      setCurrentlyPlayingDropId(null);
+      setAudioPlaybackProgress(0);
+    });
+  };
+
+  const handleTapDrop = (drop: Drop) => {
+    setSelectedNode(null);
+    setSelectedDrop(drop);
+    if (drop.type === 'voice') {
+      handlePlayDropAudio(drop);
+    }
+  };
+
+  const handleConnectDrop = (drop: Drop) => {
+    if (!socket || !userId) return;
+    socket.emit('request-drop-connection', { dropId: drop.id, senderId: userId });
+    setSelectedDrop(null);
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+    }
+    setCurrentlyPlayingDropId(null);
+    setAudioPlaybackProgress(0);
+  };
+
+  const handleAcceptDropRequest = (requestId: string, dropId: string, senderId: string, notificationId: string) => {
+    if (!socket || !userId) return;
+    socket.emit('accept-drop-request', {
+      requestId,
+      dropId,
+      senderId,
+      accepterId: userId
+    });
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+  };
+
+  const handleDeclineDropRequest = (notificationId: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
   };
 
   // Click on a connection card to open chat room and load history
@@ -1243,6 +1781,32 @@ export default function App() {
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeclineRequest(n.id);
+                          }}
+                        >
+                          Ignore
+                        </button>
+                      </div>
+                    </>
+                  ) : n.type === 'drop-request' ? (
+                    <>
+                      <p className="notif-text">
+                        <span className="font-bold text-violet-400">@{n.fromUserAlias}</span> waved back at your {n.dropType === 'voice' ? 'Voice Drop 🎤' : 'Message Drop ✉️'}!
+                      </p>
+                      <div className="notif-actions">
+                        <button 
+                          className="notif-btn-accept" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAcceptDropRequest(n.requestId || '', n.dropId || '', n.fromUserId, n.id);
+                          }}
+                        >
+                          Accept
+                        </button>
+                        <button 
+                          className="notif-btn-decline" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeclineDropRequest(n.id);
                           }}
                         >
                           Ignore
@@ -1714,12 +2278,17 @@ export default function App() {
 
           {/* B. Centerpiece View (Radar Orb OR Active Chat Room) */}
           <div 
+            ref={glassPanelRef}
             className={`glass-panel flex-1 flex flex-col justify-center items-center min-h-[420px] ${activeConnectionId ? 'p-3 md:p-6 chat-active-panel' : 'p-6'}`}
-            style={{ position: 'relative' }}
+            style={{ 
+              position: 'relative',
+              overflowY: (selectedDrop || selectedNode || showGlobalFallbackPrompt) ? 'auto' : 'visible'
+            }}
           >
             
             {isRegistered && !activeConnectionId && activeTab === 'home' && (
               <button
+                id="edit-profile-btn"
                 onClick={() => setIsRegistered(false)}
                 className="p-2 rounded-lg bg-white/5 border border-white/10 text-text-secondary hover:text-white hover:bg-white/10 transition-all flex items-center gap-1.5 text-xs font-semibold cursor-pointer z-10"
                 style={{ position: 'absolute', top: '16px', left: '16px' }}
@@ -1727,6 +2296,24 @@ export default function App() {
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Edit Profile</span>
+              </button>
+            )}
+
+            {isRegistered && !activeConnectionId && activeTab === 'home' && (
+              <button
+                id="toggle-mock-btn"
+                onClick={() => {
+                  setIsMockDropsActive((prev) => !prev);
+                  showToast(!isMockDropsActive ? 'Simulated 60 drops scattered in orbits!' : 'Cleared mock drops', 'info');
+                }}
+                className={`p-2 rounded-lg border text-text-secondary hover:text-white hover:bg-white/10 transition-all flex items-center gap-1.5 text-xs font-semibold cursor-pointer z-10 ${
+                  isMockDropsActive ? 'bg-violet-950/80 border-violet-500 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]' : 'bg-white/5 border-white/10'
+                }`}
+                style={{ position: 'absolute', top: '16px', right: '16px' }}
+                title="Toggle simulated mock drops"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{isMockDropsActive ? 'Disable Mock' : 'Simulate 60 Drops'}</span>
               </button>
             )}
 
@@ -1827,7 +2414,7 @@ export default function App() {
                 ) : (
                   /* Saturn Radar Orb Centerpiece */
                   <div className="orb-discovery-centerpiece w-full">
-                    <div className="planet-orb-container glow-primary">
+                    <div ref={orbContainerRef} className="planet-orb-container glow-primary">
                       {isScanning && <div className="orb-sweep-beam"></div>}
                       <div className="planet-ring"></div>
                       
@@ -1876,6 +2463,86 @@ export default function App() {
                           </button>
                         );
                       })}
+
+                      {/* Floating Voice & Message Drops scattered outside orbits */}
+                      {!isScanning && getDropPositions(
+                        displayedDrops.filter(d => !requestedDropIds.has(d.id)).slice(0, 25),
+                        radarBounds,
+                        visibleUsersBatch.length
+                      ).map(({ drop, x, y }) => {
+                        const isVoice = drop.type === 'voice';
+                        const isPlaying = currentlyPlayingDropId === drop.id;
+                        
+                        return (
+                          <div
+                            key={drop.id}
+                            style={{
+                              position: 'absolute',
+                              left: '50%',
+                              top: '50%',
+                              transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                              zIndex: 5
+                            }}
+                            className="absolute flex items-center justify-center animate-fadeIn"
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTapDrop(drop);
+                              }}
+                              style={{
+                                width: '42px',
+                                height: '42px',
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                                border: isPlaying 
+                                  ? '2px solid #22d3ee'
+                                  : isVoice 
+                                    ? '1.5px solid rgba(139, 92, 246, 0.5)'
+                                    : '1.5px solid rgba(16, 185, 129, 0.5)',
+                                color: isPlaying 
+                                  ? '#22d3ee' 
+                                  : isVoice 
+                                    ? '#c084fc' 
+                                    : '#34d399',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.3s ease',
+                                boxShadow: isPlaying 
+                                  ? '0 0 15px rgba(34, 211, 238, 0.6)' 
+                                  : '0 4px 12px rgba(0, 0, 0, 0.3)',
+                                position: 'relative',
+                                outline: 'none'
+                              }}
+                              className="hover:scale-110"
+                            >
+                              {/* If voice note is playing, show a circular progress ring around the emoji */}
+                              {isPlaying && (
+                                <svg className="absolute inset-0 w-full h-full -rotate-90">
+                                  <circle
+                                    cx="21"
+                                    cy="21"
+                                    r="19"
+                                    stroke="#22d3ee"
+                                    strokeWidth="2.5"
+                                    fill="transparent"
+                                    strokeDasharray="119.38"
+                                    strokeDashoffset={119.38 - (119.38 * audioPlaybackProgress) / 100}
+                                    className="transition-all duration-100"
+                                  />
+                                </svg>
+                              )}
+                              
+                              {/* Drop Emoji */}
+                              <span className="text-xl select-none" style={{ fontSize: '18px' }}>
+                                {isVoice ? '🎤' : '✉️'}
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {/* Vibe filter pills toggles */}
@@ -1903,9 +2570,77 @@ export default function App() {
                       </div>
                     )}
 
-                    <div className="flex flex-col items-center gap-4">
-                      {selectedNode ? (
-                        <div className="glass-panel p-6 flex flex-col items-center text-center max-w-xs border-cyan-500/20 animate-fadeIn" style={{ animationDuration: '0.3s', position: 'relative' }}>
+                    <div id="bottom-controls-area" className="flex flex-col items-center gap-4">
+                      {selectedDrop ? (
+                        <div className="glass-panel p-4 md:p-5 flex flex-col items-center text-center max-w-xs border-violet-500/20 animate-fadeIn" style={{ animationDuration: '0.3s', position: 'relative' }}>
+                          <button
+                            onClick={() => {
+                              setSelectedDrop(null);
+                              if (audioPlayerRef.current) {
+                                audioPlayerRef.current.pause();
+                                setCurrentlyPlayingDropId(null);
+                                setAudioPlaybackProgress(0);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-text-secondary hover:text-white hover:bg-white/10 transition-all flex items-center justify-center cursor-pointer z-10"
+                            style={{ position: 'absolute', top: '12px', right: '12px' }}
+                            title="Close Details"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                          
+                          <div className="w-10 h-10 rounded-full bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-2">
+                            <span className="text-xl">{selectedDrop.type === 'voice' ? '🎤' : '✉️'}</span>
+                          </div>
+
+                          <h4 className="font-extrabold text-white text-base tracking-tight">
+                            {selectedDrop.type === 'voice' ? 'Anonymous Voice Drop' : 'Anonymous Message Drop'}
+                          </h4>
+                          
+                          <p className="text-[10px] text-violet-300 font-semibold mt-0.5">
+                            Dropped in {selectedDrop.city} • {new Date(selectedDrop.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+
+                          {selectedDrop.type === 'voice' ? (
+                            <div className="w-full flex flex-col items-center mt-2">
+                              <button
+                                onClick={() => handlePlayDropAudio(selectedDrop)}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all duration-300 ${
+                                  currentlyPlayingDropId === selectedDrop.id
+                                    ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
+                                    : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+                                }`}
+                              >
+                                {currentlyPlayingDropId === selectedDrop.id ? (
+                                  <>
+                                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                                    <span>Playing ({selectedDrop.duration || 60}s)</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>▶️</span>
+                                    <span>Play Voice Note</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="w-full mt-2 p-2.5 bg-white/5 border border-white/10 rounded-xl relative">
+                              <p className="text-xs text-white leading-relaxed text-center italic" style={{ textTransform: 'none' }}>
+                                "{selectedDrop.messageText}"
+                              </p>
+                            </div>
+                          )}
+
+                          <button 
+                            onClick={() => handleConnectDrop(selectedDrop)}
+                            className="btn-primary py-2 px-6 mt-3.5 text-xs font-bold tracking-wider w-full max-w-[210px] shadow-lg shadow-violet-500/25 transition-all duration-300 hover:scale-[1.03]"
+                          >
+                            Connect Chat
+                          </button>
+                        </div>
+                      ) : selectedNode ? (
+                        <div className="glass-panel p-4 md:p-5 flex flex-col items-center text-center max-w-xs border-cyan-500/20 animate-fadeIn" style={{ animationDuration: '0.3s', position: 'relative' }}>
                           <button
                             onClick={() => setSelectedNode(null)}
                             className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-text-secondary hover:text-white hover:bg-white/10 transition-all flex items-center justify-center cursor-pointer z-10"
@@ -1915,28 +2650,28 @@ export default function App() {
                             <X className="w-3.5 h-3.5" />
                           </button>
                           <h4 className="font-extrabold text-white text-lg tracking-tight">@{selectedNode.alias}</h4>
-                          <p className="text-xs text-cyan-400 font-semibold mt-1.5">
+                          <p className="text-xs text-cyan-400 font-semibold mt-1">
                             Online in {selectedNode.city || selectedCity}{selectedNode.age > 0 ? ` • ${selectedNode.age}y/o` : ''}{selectedNode.gender ? ` • ${selectedNode.gender.charAt(0).toUpperCase() + selectedNode.gender.slice(1)}` : ''}
                           </p>
-                          <div className="flex flex-wrap gap-2 justify-center mt-3.5 mb-2">
+                          <div className="flex flex-wrap gap-2 justify-center mt-2.5 mb-2">
                             {selectedNode.interests.length > 0 ? (
-                              selectedNode.interests.slice(0, 3).map(tag => (
-                                <span key={tag} className="text-[10px] px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 font-medium tracking-wide">
-                                  #{tag}
-                                </span>
-                              ))
+                               selectedNode.interests.slice(0, 3).map(tag => (
+                                 <span key={tag} className="text-[10px] px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 font-medium tracking-wide">
+                                   #{tag}
+                                 </span>
+                               ))
                             ) : (
-                              <span className="text-[10px] px-2.5 py-1 rounded-full bg-violet-950/20 border border-violet-900/30 text-violet-400 font-medium italic">
-                                Stealth Mode Active 🔒
-                              </span>
+                               <span className="text-[10px] px-2.5 py-1 rounded-full bg-violet-950/20 border border-violet-900/30 text-violet-400 font-medium italic">
+                                 Stealth Mode Active 🔒
+                               </span>
                             )}
                           </div>
 
                           <button 
                             onClick={handleSendWave}
-                            className="btn-primary py-2.5 px-6 mt-4 text-xs font-bold tracking-wider w-full max-w-[210px] shadow-lg shadow-violet-500/25 transition-all duration-300 hover:scale-[1.03]"
+                            className="btn-primary py-2 px-6 mt-3 text-xs font-bold tracking-wider w-full max-w-[210px] shadow-lg shadow-violet-500/25 transition-all duration-300 hover:scale-[1.03]"
                           >
-                            Connect Anonymous Chat
+                            Connect Chat
                           </button>
                         </div>
                       ) : showGlobalFallbackPrompt ? (
@@ -1947,13 +2682,7 @@ export default function App() {
                             No one is online in your city right now. Would you like to expand your search and match with someone globally?
                           </p>
                           
-                          <button
-                            onClick={handleSubscribeCityAlerts}
-                            className={`btn-alert-subscribe mt-3 ${isSubscribedToCityAlerts ? 'active' : ''}`}
-                            disabled={isSubscribedToCityAlerts}
-                          >
-                            {isSubscribedToCityAlerts ? '🔔 Alerts Active' : `Alert me when ${selectedCity} goes active 🔔`}
-                          </button>
+
 
                           <div className="flex gap-2 mt-4 w-full">
                             <button 
@@ -1993,6 +2722,21 @@ export default function App() {
                               )}
                             </button>
 
+                            <button
+                              onClick={() => {
+                                setIsDropModalOpen(true);
+                                setDropType('voice');
+                                setDropMessageText('');
+                                setAudioBlob(null);
+                                setAudioDuration(0);
+                                setRecordingSeconds(0);
+                              }}
+                              disabled={isScanning || !isRegistered}
+                              className="btn-secondary-drop"
+                            >
+                              <span>Drop Note 📍</span>
+                            </button>
+
                             {isGlobalSearchActive && !isScanning && (
                               <button
                                 onClick={handleResetToLocalSearch}
@@ -2014,15 +2758,7 @@ export default function App() {
                             )}
                           </div>
                           
-                          {!isScanning && isRegistered && nearbyUsers.length === 0 && (
-                            <button
-                              onClick={handleSubscribeCityAlerts}
-                              className={`btn-alert-subscribe mt-2 ${isSubscribedToCityAlerts ? 'active' : ''}`}
-                              disabled={isSubscribedToCityAlerts}
-                            >
-                              {isSubscribedToCityAlerts ? '🔔 Alerts Active' : `Alert me when ${selectedCity} goes active 🔔`}
-                            </button>
-                          )}
+
                         </div>
                       )}
                       
@@ -3159,6 +3895,177 @@ export default function App() {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Drop Modal (Voice/Message Drop creation modal) */}
+      {isDropModalOpen && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-card border-violet-500/20" style={{ maxWidth: '420px' }}>
+            <div className="modal-header">
+              <div className="modal-header-icon" style={{ background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)', color: '#a855f7' }}>
+                <MapPin className="w-5 h-5 text-violet-400" />
+              </div>
+              <div className="modal-header-info">
+                <h4>Drop a Message or Voice Note 📍</h4>
+                <p>Pin it in the deep space of {selectedCity}</p>
+              </div>
+            </div>
+
+            <div className="modal-divider" />
+
+            {/* Tab selector */}
+            <div className="flex gap-2 mb-4 w-full" style={{ display: 'flex', gap: '8px', marginBottom: '16px', width: '100%' }}>
+              <button
+                type="button"
+                onClick={() => setDropType('voice')}
+                disabled={isRecording || isUploading}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                  dropType === 'voice'
+                    ? 'bg-violet-600 border border-violet-500 text-white shadow-md shadow-violet-600/20'
+                    : 'bg-white/5 border border-white/10 text-violet-300 hover:bg-white/10'
+                }`}
+                style={{ height: '38px', padding: '0 12px', flex: 1, cursor: 'pointer' }}
+              >
+                🎤 Voice Drop
+              </button>
+              <button
+                type="button"
+                onClick={() => setDropType('message')}
+                disabled={isRecording || isUploading}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                  dropType === 'message'
+                    ? 'bg-violet-600 border border-violet-500 text-white shadow-md shadow-violet-600/20'
+                    : 'bg-white/5 border border-white/10 text-violet-300 hover:bg-white/10'
+                }`}
+                style={{ height: '38px', padding: '0 12px', flex: 1, cursor: 'pointer' }}
+              >
+                ✉️ Message Drop
+              </button>
+            </div>
+
+            {dropType === 'voice' ? (
+              <div className="flex flex-col items-center gap-4 w-full" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', width: '100%', marginBottom: '20px' }}>
+                <div className="w-20 h-20 rounded-full flex items-center justify-center border relative transition-all duration-300" style={{
+                  background: isRecording ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                  borderColor: isRecording ? '#ef4444' : 'rgba(255, 255, 255, 0.1)',
+                  boxShadow: isRecording ? '0 0 20px rgba(239, 68, 68, 0.4)' : 'none'
+                }}>
+                  {isRecording ? (
+                    <div className="w-10 h-10 rounded-full bg-red-500 animate-pulse flex items-center justify-center text-white">
+                      ⏹️
+                    </div>
+                  ) : (
+                    <span className="text-3xl">🎤</span>
+                  )}
+                </div>
+
+                <div className="text-center">
+                  {isRecording ? (
+                    <p className="text-xs text-red-400 font-bold animate-pulse">
+                      Recording: {recordingSeconds}s / 60s
+                    </p>
+                  ) : audioBlob ? (
+                    <p className="text-xs text-emerald-400 font-semibold">
+                      Voice Note Recorded ({audioDuration}s)
+                    </p>
+                  ) : (
+                    <p className="text-xs text-text-secondary">
+                      Max duration: 1 minute
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex gap-2 w-full" style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                  {!audioBlob ? (
+                    <button
+                      type="button"
+                      onClick={isRecording ? stopRecording : startRecording}
+                      disabled={isUploading}
+                      className={`w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                        isRecording 
+                          ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/10' 
+                          : 'bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-600/15'
+                      }`}
+                      style={{ height: '40px', flex: 1, cursor: 'pointer' }}
+                    >
+                      {isRecording ? 'Stop Recording' : 'Start Recording'}
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={togglePreviewPlayback}
+                        className={`py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
+                          isPreviewPlaying
+                            ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
+                            : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+                        }`}
+                        style={{ height: '40px', flex: 1, cursor: 'pointer' }}
+                      >
+                        {isPreviewPlaying ? '⏹️ Pause' : '▶️ Play Preview'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAudioBlob(null);
+                          setAudioDuration(0);
+                          setRecordingSeconds(0);
+                          if (previewPlayerRef.current) previewPlayerRef.current.pause();
+                          setIsPreviewPlaying(false);
+                        }}
+                        disabled={isUploading}
+                        className="py-2.5 rounded-xl text-xs font-bold bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
+                        style={{ height: '40px', flex: 1, cursor: 'pointer' }}
+                      >
+                        🗑️ Reset
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 w-full" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginBottom: '20px' }}>
+                <label className="text-[10px] text-text-secondary uppercase tracking-wider font-bold">Write a Message</label>
+                <textarea
+                  value={dropMessageText}
+                  onChange={(e) => setDropMessageText(e.target.value.slice(0, 140))}
+                  placeholder="Drop a thought, question, or vibe..."
+                  disabled={isUploading}
+                  className="w-full h-24 p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-text-muted focus:border-violet-500/40 focus:outline-none resize-none transition-all"
+                  style={{ textTransform: 'none' }}
+                />
+                <div className="flex justify-end">
+                  <span className={`text-[10px] ${dropMessageText.length >= 130 ? 'text-amber-400 font-bold' : 'text-text-muted'}`}>
+                    {dropMessageText.length}/140
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="modal-divider" />
+
+            <div className="flex gap-2.5 w-full" style={{ display: 'flex', gap: '10px', width: '100%' }}>
+              <button
+                type="button"
+                onClick={handlePublishDrop}
+                disabled={isUploading || isRecording || (dropType === 'voice' && !audioBlob) || (dropType === 'message' && !dropMessageText.trim())}
+                className="btn-primary py-2.5 px-4 text-xs font-bold tracking-wider flex-1 shadow-lg shadow-violet-500/20 disabled:opacity-40 disabled:pointer-events-none"
+                style={{ flex: 1, padding: '12px' }}
+              >
+                {isUploading ? 'Publishing...' : 'Publish Drop 📍'}
+              </button>
+              <button
+                type="button"
+                onClick={closeDropModal}
+                disabled={isUploading}
+                className="change-location-btn py-2.5 px-4 text-xs font-bold flex-1"
+                style={{ flex: 1, justifyContent: 'center', padding: '12px' }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

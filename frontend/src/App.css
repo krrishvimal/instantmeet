@@ -2031,6 +2031,46 @@ select.bar-input:focus {
   height: 100%;
 }
 
+/* Premium secondary capsule button for Drop Note */
+.btn-secondary-drop {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1.5px solid rgba(168, 85, 247, 0.3) !important;
+  color: #c084fc !important;
+  font-weight: 600 !important;
+  border-radius: 9999px !important;
+  padding: 12px 28px !important;
+  font-size: 0.9rem !important;
+  font-family: 'Outfit', sans-serif !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+  height: 48px !important;
+  box-sizing: border-box !important;
+}
+
+.btn-secondary-drop:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(168, 85, 247, 0.6) !important;
+  background: rgba(168, 85, 247, 0.05) !important;
+  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.2) !important;
+  color: white !important;
+}
+
+.btn-secondary-drop:active {
+  transform: translateY(0) !important;
+}
+
+.btn-secondary-drop:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 
 
 
