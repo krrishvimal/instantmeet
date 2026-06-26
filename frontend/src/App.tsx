@@ -438,7 +438,6 @@ export default function App() {
 
   // Drop states
   const [activeDrops, setActiveDrops] = useState<Drop[]>([]);
-  const [isMockDropsActive, setIsMockDropsActive] = useState(false);
 
   // Refs and state for dynamic radar bounds calculation
   const glassPanelRef = useRef<HTMLDivElement | null>(null);
@@ -511,29 +510,7 @@ export default function App() {
       window.removeEventListener('resize', updateBounds);
     };
   }, [activeTab, activeConnectionId, isRegistered, nearbyUsers.length]);
-  
-  const displayedDrops = useMemo(() => {
-    if (isMockDropsActive) {
-      const mockList: Drop[] = [];
-      for (let i = 0; i < 60; i++) {
-        const isVoice = i % 2 === 0;
-        mockList.push({
-          id: `mock-drop-${i}`,
-          userId: `mock-user-${i}`,
-          type: isVoice ? 'voice' : 'message',
-          messageText: isVoice ? undefined : `Mock message drop #${i} with some sample text for testing layout.`,
-          contentUrl: isVoice ? 'https://example.com/mock-audio.mp3' : undefined,
-          duration: isVoice ? 12 : undefined,
-          city: selectedCity || 'Pune',
-          location: { lat: 18.5204, lng: 73.8567 },
-          status: 'active',
-          createdAt: Date.now() - i * 1000 * 60,
-        });
-      }
-      return mockList;
-    }
-    return activeDrops;
-  }, [isMockDropsActive, activeDrops, selectedCity]);
+  const displayedDrops = activeDrops;
 
   const [requestedDropIds, setRequestedDropIds] = useState<Set<string>>(new Set());
   const [selectedDrop, setSelectedDrop] = useState<Drop | null>(null);
@@ -2299,23 +2276,6 @@ export default function App() {
               </button>
             )}
 
-            {isRegistered && !activeConnectionId && activeTab === 'home' && (
-              <button
-                id="toggle-mock-btn"
-                onClick={() => {
-                  setIsMockDropsActive((prev) => !prev);
-                  showToast(!isMockDropsActive ? 'Simulated 60 drops scattered in orbits!' : 'Cleared mock drops', 'info');
-                }}
-                className={`p-2 rounded-lg border text-text-secondary hover:text-white hover:bg-white/10 transition-all flex items-center gap-1.5 text-xs font-semibold cursor-pointer z-10 ${
-                  isMockDropsActive ? 'bg-violet-950/80 border-violet-500 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]' : 'bg-white/5 border-white/10'
-                }`}
-                style={{ position: 'absolute', top: '16px', right: '16px' }}
-                title="Toggle simulated mock drops"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{isMockDropsActive ? 'Disable Mock' : 'Simulate 60 Drops'}</span>
-              </button>
-            )}
 
             {errorMsg && (
               <div className="absolute top-4 left-4 right-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
@@ -2400,7 +2360,7 @@ export default function App() {
                     
                     {/* Description */}
                     <p className="text-xs leading-relaxed max-w-sm mx-auto mb-8" style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '13px' }}>
-                      InstantMeet connects you anonymously and securely in real-time. Complete your anonymous profile details above and click <strong className="text-violet-300 font-semibold">Search People</strong> to activate the scanner.
+                      InstantMeet connects you anonymously in real-time. Click <strong className="text-violet-300 font-semibold">Search People</strong> to scan your city, or click <strong className="text-violet-300 font-semibold">Drop Note</strong> to pin a voice note or message on the radar for others to find!
                     </p>
 
                     {/* Status Pill */}
@@ -3914,6 +3874,22 @@ export default function App() {
             </div>
 
             <div className="modal-divider" />
+
+            {/* Feature Description Card */}
+            <div 
+              style={{
+                background: 'rgba(139, 92, 246, 0.04)',
+                border: '1px dashed rgba(139, 92, 246, 0.25)',
+                borderRadius: '12px',
+                padding: '10px 12px',
+                marginBottom: '16px'
+              }}
+              className="animate-fadeIn"
+            >
+              <p className="text-[11px] leading-relaxed text-violet-300 text-center" style={{ textTransform: 'none', margin: 0 }}>
+                <strong>How it works:</strong> Create a voice note or short message and pin it in your city. Other local users can find it floating on their radar, listen to it, and request to connect. Once you accept their wave, the note is deleted and a secure chat room opens!
+              </p>
+            </div>
 
             {/* Tab selector */}
             <div className="flex gap-2 mb-4 w-full" style={{ display: 'flex', gap: '8px', marginBottom: '16px', width: '100%' }}>
