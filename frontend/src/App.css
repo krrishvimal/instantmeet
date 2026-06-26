@@ -172,9 +172,20 @@ input[type="text"]:focus, input[type="number"]:focus, .bar-input:focus {
   flex-direction: row !important;
   align-items: flex-end !important;
   justify-content: flex-start !important;
-  gap: 16px !important;
+  gap: 12px !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+}
+
+.profile-bottom-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
   flex-wrap: wrap !important;
   width: 100% !important;
+  margin-top: 16px !important;
 }
 
 .bar-input-group {
@@ -203,11 +214,11 @@ input[type="text"]:focus, input[type="number"]:focus, .bar-input:focus {
 
 /* Explicit selector overrides to beat input specificity */
 .bar-input-group input.display-name-input {
-  width: 150px !important;
+  width: 120px !important;
 }
 
 .bar-input-group input.age-input {
-  width: 70px !important;
+  width: 55px !important;
 }
 
 .bar-input-group button.location-sync-btn {
@@ -326,6 +337,10 @@ input[type="text"]:focus, input[type="number"]:focus, .bar-input:focus {
 /* Onboarding action buttons alignment */
 .onboarding-action-group {
   margin-left: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  align-items: flex-end !important;
 }
 
 .onboarding-gradient-btn {
@@ -889,6 +904,13 @@ input[type="number"] {
     gap: 14px !important;
   }
 
+  .profile-bottom-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+    margin-top: 14px !important;
+  }
+
   .bar-input-group {
     width: 100% !important;
   }
@@ -907,6 +929,10 @@ input[type="number"] {
     margin-left: 0 !important;
     margin-top: 8px !important;
     width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    align-items: center !important;
   }
 
   .onboarding-gradient-btn {

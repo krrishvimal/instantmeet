@@ -2151,7 +2151,7 @@ export default function App() {
                       type="text" 
                       value={alias}
                       onChange={(e) => setAlias(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
-                      placeholder="Enter your name"
+                      placeholder="Your name"
                       className="bar-input display-name-input"
                     />
                   </div>
@@ -2171,7 +2171,7 @@ export default function App() {
                         fontSize: '0.9rem',
                         height: '42px',
                         outline: 'none',
-                        minWidth: '100px',
+                        minWidth: '90px',
                       }}
                     >
                       <option value="male" style={{ background: '#120c2d', color: '#fff' }}>Male</option>
@@ -2210,7 +2210,7 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="bar-input-group flex-1" style={{ minWidth: '240px' }}>
+                  <div className="bar-input-group" style={{ minWidth: '150px' }}>
                     <label>
                       <MapPin className="w-4 h-4 text-violet-400" />
                       <span>Select City</span>
@@ -2244,7 +2244,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="bar-input-group flex-1" style={{ minWidth: '160px' }}>
+                  <div className="bar-input-group" style={{ minWidth: '120px' }}>
                     <label>
                       <Heart className="w-4 h-4 text-violet-400" />
                       <span>Interested In</span>
@@ -2272,7 +2272,9 @@ export default function App() {
                       </select>
                     </div>
                   </div>
+                </div>
 
+                <div className="profile-bottom-row">
                   <div className="bar-input-group flex-1 interests-input-group">
                     <label>
                       <Heart className="w-4 h-4 text-violet-400" />
@@ -2332,7 +2334,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="onboarding-action-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                  <div className="onboarding-action-group">
                     <button 
                       onClick={() => handleRegisterOrEnter()}
                       className="btn-primary onboarding-gradient-btn"
