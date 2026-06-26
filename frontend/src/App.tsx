@@ -3887,7 +3887,7 @@ export default function App() {
               className="animate-fadeIn"
             >
               <p className="text-[11px] leading-relaxed text-violet-300 text-center" style={{ textTransform: 'none', margin: 0 }}>
-                <strong>How it works:</strong> Create a voice note or short message and pin it in your city. Other local users can find it floating on their radar, listen to it, and request to connect. Once you accept their wave, the note is deleted and a secure chat room opens!
+                <strong>How it works:</strong> Create a voice note or short message and pin it in your city. Other local users can find it floating on their radar, listen to it, and request to connect. Once you accept their wave, a secure chat room opens!
               </p>
             </div>
 
