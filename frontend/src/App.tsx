@@ -2407,31 +2407,35 @@ export default function App() {
                   <div className="flex flex-col items-center justify-center text-center p-6 md:p-10 max-w-lg mx-auto animate-fadeIn w-full" style={{ animationDuration: '0.4s' }}>
                     
                     {/* Rotating Radar Container */}
-                    <div className="flex items-center justify-center mb-6">
+                    <div className="flex items-center justify-center mb-6 relative">
+                      {/* Ambient background glow */}
+                      <div className="absolute w-36 h-36 rounded-full bg-cyan-500/5 blur-2xl animate-pulse"></div>
+                      
                       <div 
                         style={{ 
-                          width: '110px', 
-                          height: '110px', 
-                          border: '1px solid rgba(139, 92, 246, 0.3)', 
-                          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, rgba(15, 10, 40, 0.8) 100%)', 
+                          width: '120px', 
+                          height: '120px', 
+                          border: '1px solid rgba(6, 182, 212, 0.25)', 
+                          background: 'radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, rgba(15, 10, 40, 0.9) 100%)', 
                           borderRadius: '50%', 
                           position: 'relative', 
                           display: 'flex', 
                           alignItems: 'center', 
                           justifyContent: 'center', 
                           overflow: 'hidden',
-                          boxShadow: '0 0 30px rgba(139, 92, 246, 0.15)'
+                          boxShadow: '0 0 35px rgba(6, 182, 212, 0.15)'
                         }}
                       >
                         {/* Concentric rings */}
-                        <div className="absolute w-20 h-20 rounded-full" style={{ border: '1px dashed rgba(139, 92, 246, 0.15)' }}></div>
-                        <div className="absolute w-10 h-10 rounded-full" style={{ border: '1px solid rgba(139, 92, 246, 0.1)' }}></div>
+                        <div className="absolute w-24 h-24 rounded-full" style={{ border: '1px dashed rgba(6, 182, 212, 0.15)' }}></div>
+                        <div className="absolute w-16 h-16 rounded-full" style={{ border: '1px solid rgba(6, 182, 212, 0.1)' }}></div>
+                        <div className="absolute w-8 h-8 rounded-full" style={{ border: '1px solid rgba(6, 182, 212, 0.05)' }}></div>
                         
                         {/* Radar Sweep Line */}
                         <div 
                           className="absolute inset-0 animate-spin" 
                           style={{ 
-                            animationDuration: '3s', 
+                            animationDuration: '3.5s', 
                             transformOrigin: 'center center'
                           }}
                         >
@@ -2442,8 +2446,8 @@ export default function App() {
                               left: '50%',
                               width: '2px',
                               height: '50%',
-                              background: 'linear-gradient(to top, rgba(34, 211, 238, 0.05) 0%, rgba(34, 211, 238, 0.8) 100%)',
-                              boxShadow: '0 0 10px rgba(34, 211, 238, 0.5)'
+                              background: 'linear-gradient(to top, rgba(6, 182, 212, 0.05) 0%, rgba(6, 182, 212, 0.8) 100%)',
+                              boxShadow: '0 0 12px rgba(6, 182, 212, 0.6)'
                             }}
                           ></div>
                           {/* Fading trail quadrant */}
@@ -2451,14 +2455,14 @@ export default function App() {
                             style={{
                               position: 'absolute',
                               inset: '0',
-                              background: 'conic-gradient(from 180deg at 50% 50%, transparent 75%, rgba(34, 211, 238, 0.12) 100%)',
+                              background: 'conic-gradient(from 180deg at 50% 50%, transparent 75%, rgba(6, 182, 212, 0.15) 100%)',
                               borderRadius: '50%'
                             }}
                           ></div>
                         </div>
                         
                         {/* Center Beacon */}
-                        <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse z-10"></div>
+                        <div className="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,1)] animate-pulse z-10"></div>
                       </div>
                     </div>
 
@@ -2475,12 +2479,27 @@ export default function App() {
                     </h3>
                     
                     {/* Description */}
-                    <p className="text-xs leading-relaxed max-w-sm mx-auto mb-3" style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '13px' }}>
+                    <p className="text-xs leading-relaxed max-w-sm mx-auto mb-5" style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '13px' }}>
                       InstantMeet connects you anonymously in real-time. Click <strong className="text-violet-300 font-semibold">Search People</strong> to scan your city, or click <strong className="text-violet-300 font-semibold">Drop Note</strong> to pin a voice note or message on the radar for others to find!
                     </p>
-                    <p className="text-[11px] leading-relaxed max-w-sm mx-auto mb-8 text-amber-400/80 flex items-center justify-center gap-1">
-                      <span>⚠️ Note: If you leave the app, active chats & drops delete after 1 minute of absence.</span>
-                    </p>
+
+                    {/* Ephemeral Warning alert card */}
+                    <div 
+                      className="mx-auto max-w-sm mb-8 px-4 py-3.5 rounded-2xl flex items-start gap-3 animate-fadeIn"
+                      style={{
+                        background: 'rgba(245, 158, 11, 0.02)',
+                        border: '1px solid rgba(245, 158, 11, 0.15)',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <ShieldAlert className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                      <div style={{ textTransform: 'none' }}>
+                        <span className="text-[11px] font-bold text-amber-300 block mb-0.5" style={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>Ephemeral Session Mode</span>
+                        <p className="text-[10px] text-text-secondary leading-relaxed m-0" style={{ color: 'rgba(255, 255, 255, 0.55)' }}>
+                          Your temporary profile and drops will be completely erased. If you close the app or disconnect for over 1 minute, your active chats, voice drops, and match session will be permanently deleted.
+                        </p>
+                      </div>
+                    </div>
 
                     {/* Status Pill */}
                     <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold tracking-wide shadow-inner">
