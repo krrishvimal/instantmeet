@@ -1045,7 +1045,7 @@ io.on('connection', (socket) => {
         queueDbOperation(uId, () => dbService.saveActiveUser(user));
       }
       
-      console.log(`User disconnected, scheduled cleanup in 15s for: ${user?.alias} (${uId})`);
+      console.log(`User disconnected, scheduled cleanup in 60s for: ${user?.alias} (${uId})`);
       broadcastAdminStats();
       
       const timeout = setTimeout(() => {
@@ -1100,7 +1100,7 @@ io.on('connection', (socket) => {
         }
         console.log(`Cleanup complete for user ${userAlias}. Deleted ${connectionsToDelete.length} connections.`);
         broadcastAdminStats();
-      }, 15000);
+      }, 60000);
  
       disconnectTimeouts.set(uId, timeout);
     }

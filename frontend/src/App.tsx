@@ -2410,8 +2410,11 @@ export default function App() {
                     </h3>
                     
                     {/* Description */}
-                    <p className="text-xs leading-relaxed max-w-sm mx-auto mb-8" style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '13px' }}>
+                    <p className="text-xs leading-relaxed max-w-sm mx-auto mb-3" style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '13px' }}>
                       InstantMeet connects you anonymously in real-time. Click <strong className="text-violet-300 font-semibold">Search People</strong> to scan your city, or click <strong className="text-violet-300 font-semibold">Drop Note</strong> to pin a voice note or message on the radar for others to find!
+                    </p>
+                    <p className="text-[11px] leading-relaxed max-w-sm mx-auto mb-8 text-amber-400/80 flex items-center justify-center gap-1">
+                      <span>⚠️ Note: If you leave the app, active chats & drops delete after 1 minute of absence.</span>
                     </p>
 
                     {/* Status Pill */}
@@ -3307,6 +3310,9 @@ export default function App() {
 
                 {/* Chat History Panel */}
                 <div className="chat-history-container">
+                  <div className="mx-auto my-2 px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-[11px] text-text-muted text-center max-w-md" style={{ textTransform: 'none' }}>
+                    🔒 This anonymous conversation is ephemeral. If you close the app or disconnect for over 1 minute, the chat will be permanently erased.
+                  </div>
                   {chatMessages.map((msg) => {
                     const isMe = msg.senderId === userId;
                     return (
@@ -3939,6 +3945,9 @@ export default function App() {
             >
               <p className="text-[11px] leading-relaxed text-violet-300 text-center" style={{ textTransform: 'none', margin: 0 }}>
                 <strong>How it works:</strong> Create a voice note or short message and pin it in your city. Other local users can find it floating on their radar, listen to it, and request to connect. Once you accept their wave, a secure chat room opens!
+              </p>
+              <p className="text-[10px] leading-relaxed text-amber-300/90 text-center mt-2 animate-pulse" style={{ textTransform: 'none', margin: '6px 0 0 0' }}>
+                ⚠️ <strong>Note:</strong> Closing the app deletes your drops and active chats after 1 minute of absence.
               </p>
             </div>
 
